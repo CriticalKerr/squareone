@@ -4,4 +4,6 @@ httpx
 python-dotenv
 beautifulsoup4
 scrapfly-sdk
-python-dotenv
+sqlalchemy
+aiosqlite
+pydantic
