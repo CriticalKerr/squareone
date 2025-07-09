@@ -1,4 +1,5 @@
-import asyncio
+
+'''import asyncio
 import logging
 import random
 from typing import List, Optional, Dict
@@ -640,8 +641,8 @@ async def save_listing_to_db(listing: Listing) -> bool:
             return False
 
 #______________________________________________________
-# RETREIVES ALL LISTINGS FROM THE DATABASE
 async def get_all_listings_from_db() -> List[Listing]:
+    """Retrieve all listings from the database"""
     async with AsyncSessionLocal() as session:
         try:
             stmt = select(ListingORM)
@@ -654,12 +655,14 @@ async def get_all_listings_from_db() -> List[Listing]:
             listings = []
             for db_listing in db_listings:
                 listing = Listing(
+                    listing_link=db_listing.listing_link,
                     title=db_listing.title,
                     address=db_listing.address,
                     price=db_listing.price,
                     latitude=db_listing.latitude,
                     longitude=db_listing.longitude,
-                    image_urls=db_listing.image_urls
+                    image_urls=db_listing.image_urls or [],
+                    floorplan_urls=db_listing.floorplan_urls or []
                 )
                 listings.append(listing)
 
@@ -795,3 +798,4 @@ async def scrape_listings(postcode: str, limit: Optional[int] = None) -> List[Li
         logger.error(f"Error in scrape_listings: {str(e)}", exc_info=True)
 
     return results
+'''''
