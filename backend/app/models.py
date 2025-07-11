@@ -1,7 +1,10 @@
 
+from typing import List, Dict, Any
 from pydantic import BaseModel
-from typing import List
 
+#______________________________________________________
+# LISTING SCHEMA DEFINITION
+# Listing describes the structure of data accepted and returned by the API
 class Listing(BaseModel):
     listing_link: str
     title: str
@@ -14,3 +17,5 @@ class Listing(BaseModel):
     bedrooms_count: int
     bathrooms_count: int
     property_type: str
+    condition_analysis: List[Dict[str, Any]] = [] #LLM condition analysis
+    floorplan_analysis: List[Dict[str, Any]] = [] #LLM floorplan analysis

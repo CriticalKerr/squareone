@@ -6,10 +6,6 @@ beautifulsoup4
 scrapfly-sdk
 sqlalchemy
 aiosqlite
-<<<<<<< HEAD
-pydantic
-=======
 pydantic
 openai
 requests
->>>>>>> 47609739 (003- WIP on Visions.py for LLM intergration and listings database populated. Getting errors on some openai imports and FastAPI 'on_event' startup issues.  Main.py ammended and scraper.py commented out for now.)
