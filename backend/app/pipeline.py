@@ -25,7 +25,6 @@ async def process_listing(listing):
         result if not isinstance(result, Exception) else {'error': str(result)}
         for result in floor_results
     ]
-
     return listing
 
 #______________________________________________________

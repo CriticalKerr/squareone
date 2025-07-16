@@ -54,7 +54,7 @@ def classify_room_condition(image_url: str) -> dict:
 # analyse_floorplan() uses an architect prompt to extract room list, areas, efficiency, and notes
 def analyse_floorplan(image_url: str) -> dict:
     prompt = (
-        "You are an architect surveyor. Analyze the floorplan image and return JSON with keys:"
+        "You are an architect surveyor. Analyse the floorplan image and return JSON with keys:"
         " rooms (list of {name,type,dimensions:{length,width},area_sqm}),"
         " total_area_sqm (float), room_count ({bedrooms,bathrooms,living_rooms,kitchens,other}),"
         " layout_efficiency_score (int), notes (string)."
