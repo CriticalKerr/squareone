@@ -33,8 +33,12 @@ class ListingORM(Base):
     bedrooms_count = Column(Integer, default=0)
     bathrooms_count = Column(Integer, default=0)
     property_type = Column(String, default='')
+
+    # Defines the listings
     condition_analysis   = Column(JSON, default=list)
     floorplan_analysis   = Column(JSON, default=list)
+
+
 
 #______________________________________________________
 # CREATE TABLE IF THEY DON'T EXIST
@@ -60,6 +64,42 @@ async def save_listing(listing_data: dict) -> bool:
             await session.rollback()
             print(f"Error saving listing: {e}")
             return False
+
+
+
+#______________________________________________________
+# FETCH SINGLE LISTING BY ID
+# Retrieves a specific listing by its ID
+async def get_listing_by_id(listing_id: int) -> dict:
+    async with AsyncSessionLocal() as session:
+        try:
+            stmt = select(ListingORM).where(ListingORM.id == listing_id)
+            result = await session.execute(stmt)
+            db_listing = result.scalar_one_or_none()
+
+            if not db_listing:
+                return None
+
+            listing_dict = {
+                "id": db_listing.id,
+                "listing_link": db_listing.listing_link,
+                "title": db_listing.title,
+                "address": db_listing.address,
+                "price": db_listing.price,
+                "latitude": db_listing.latitude,
+                "longitude": db_listing.longitude,
+                "image_urls": db_listing.image_urls or [],
+                "floorplan_urls": db_listing.floorplan_urls or [],
+                "bedrooms_count": db_listing.bedrooms_count,
+                "bathrooms_count": db_listing.bathrooms_count,
+                "property_type": db_listing.property_type,
+                "condition_analysis": db_listing.condition_analysis or [],
+                "floorplan_analysis": db_listing.floorplan_analysis or [],
+            }
+            return listing_dict
+        except Exception as e:
+            print(f"Error retrieving listing {listing_id}: {e}")
+            return None
 
 #______________________________________________________
 # FETCH ALL LISTINGS FUNCTION
