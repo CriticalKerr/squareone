@@ -1,14 +1,20 @@
 /* eslint‑env node */
 /* eslint‑disable no‑unused‑vars */
-const plugin = "tailwindcss/plugin"
-
 // eslint-disable-next-line no-undef
 module.exports = {
+
+  //______________________________________________________
+  // FILES TO SCAN
+  // Where Tailwind should look for class names in your code
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
+
+  //______________________________________________________
+  // THEME EXTENSIONS
+  // Add extra colors that match the CSS variables in your components
   theme: {
     extend: {
       colors: {
-        // expose the CSS vars you’re using in your components
+        // expose the CSS vars used in the components
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -16,16 +22,18 @@ module.exports = {
         foreground: "hsl(var(--foreground))",
         card: "hsl(var(--card))",
         "card-foreground": "hsl(var(--card-foreground))",
-        // …and your primary, secondary, etc.
         primary: "hsl(var(--primary))",
         "primary-foreground": "hsl(var(--primary-foreground))",
-        // etc.
       },
     },
   },
+
+  //______________________________________________________
+  // PLUGINS
+  // External Tailwind plugins to support animations
   plugins: [
-    // if you use the shadcn tailwind-animate plugin:
+    // Load the animate plugin for extra animation utilities
+    // eslint-disable-next-line no-undef
     require("tailwindcss-animate"),
-    // any other plugins…
   ],
 }

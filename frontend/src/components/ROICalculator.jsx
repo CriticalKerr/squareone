@@ -1,184 +1,193 @@
-import React, { useState, useEffect } from 'react';
-import { Calculator, TrendingUp } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useMemo } from 'react';
+import { Calculator,PoundSterling, Home, Target } from 'lucide-react'; // Icons for calc, trends, currency, home, target
+import { Input } from '@/components/ui/input';  // Styled input box component
+import { Badge } from '@/components/ui/badge'; // Badge component for labels
 
-const ROICalculator = ({ property }) => {
-    const [purchasePrice, setPurchasePrice] = useState(0);
-    const [kitchenCost, setKitchenCost] = useState(15000);
-    const [bathroomCost, setBathroomCost] = useState(8000);
-    const [otherCosts, setOtherCosts] = useState(5000);
-    const [expectedValue, setExpectedValue] = useState(0);
-    const [roi, setROI] = useState(0);
+//______________________________________________________
+// ROI CALCULATOR COMPONENT
+// Show investment analysis for a property
+export default function ROICalculator({ property }) {
 
-    // Extract numeric value from price string and calculate expected value
-    useEffect(() => {
-        const numericPrice = parseInt(property.price.replace(/[£,]/g, ''), 10);
-        setPurchasePrice(numericPrice);
+    //______________________________________________________
+    // STATE FOR INPUTS
+    // Track purchase price and home report value entered by user
+    const [purchasePrice, setPurchasePrice] = useState(() => {
+        // Remove £ and commas, convert to number
+        const cleaned = property?.price?.replace(/£|,/g, '') || '0';
+        return parseFloat(cleaned) || 0;
+    });
+    const [homeReportValue, setHomeReportValue] = useState(0);
 
-        let valueIncrease = 0;
-        if (property.kitchenCondition === 'old') valueIncrease += 0.08;
-        if (property.bathroomCondition === 'old') valueIncrease += 0.05;
+    //______________________________________________________
+    // PARSE CONDITION ANALYSIS
+    // Get bathroom and kitchen AI analysis from property data
+    const conditionAnalysis = Array.isArray(property?.condition_analysis)
+        ? property.condition_analysis
+        : JSON.parse(property?.condition_analysis || '[]');
 
-        setExpectedValue(numericPrice * (1 + valueIncrease));
-    }, [property]);
+    const bathroomAnalysis = conditionAnalysis.find(r => r.room_type === 'bathroom');
+    const kitchenAnalysis = conditionAnalysis.find(r => r.room_type === 'kitchen');
+    const bathroomCostEstimate = bathroomAnalysis?.cost_estimate;
+    const kitchenCostEstimate = kitchenAnalysis?.cost_estimate;
 
-    // Calculate ROI whenever inputs change
-    useEffect(() => {
-        const totalCosts =
-            purchasePrice +
-            (property.kitchenCondition === 'old' ? kitchenCost : 0) +
-            (property.bathroomCondition === 'old' ? bathroomCost : 0) +
-            otherCosts;
+    //______________________________________________________
+    // CHECK IF ROOMS NEED REFURB
+    // Rooms that are not 'new/renovated' need work
+    const bathroomNeedsRefurb = bathroomAnalysis?.state !== 'new/renovated';
+    const kitchenNeedsRefurb = kitchenAnalysis?.state !== 'new/renovated';
 
-        const profit = expectedValue - totalCosts;
-        const roiPercentage = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
-        setROI(roiPercentage);
-    }, [purchasePrice, kitchenCost, bathroomCost, otherCosts, expectedValue, property]);
+    //______________________________________________________
+    // CALCULATE TOTAL REFURB COSTS
+    // Sum AI cost estimates for rooms needing work
+    const totalRefurbCosts = useMemo(() => {
+        const bathroomCost = (bathroomNeedsRefurb && bathroomCostEstimate?.total_cost) || 0;
+        const kitchenCost = (kitchenNeedsRefurb && kitchenCostEstimate?.total_cost) || 0;
+        return bathroomCost + kitchenCost;
+    }, [bathroomCostEstimate, kitchenCostEstimate, bathroomNeedsRefurb, kitchenNeedsRefurb]);
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-GB', {
-            style: 'currency',
-            currency: 'GBP',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
+    //______________________________________________________
+    // CALCULATE VALUE INCREASE
+    // 5% for bathroom, 10% for kitchen, applied to home report value
+    const valueIncrease = useMemo(() => {
+        let increase = 0;
+        if (homeReportValue > 0) {
+            if (bathroomNeedsRefurb) increase += homeReportValue * 0.05; // 5% for bathroom
+            if (kitchenNeedsRefurb) increase += homeReportValue * 0.10; // 10% for kitchen
+        }
+        return increase;
+    }, [homeReportValue, bathroomNeedsRefurb, kitchenNeedsRefurb]);
 
-    const totalRefurbCost =
-        (property.kitchenCondition === 'old' ? kitchenCost : 0) +
-        (property.bathroomCondition === 'old' ? bathroomCost : 0) +
-        otherCosts;
+    // Calculate refurbed value (home report + value increase)
+    const refurbedValue = homeReportValue + valueIncrease;
 
-    const totalInvestment = purchasePrice + totalRefurbCost;
-    const projectedProfit = expectedValue - totalInvestment;
+    // Calculate total investment (purchase + refurb costs)
+    const totalInvestment = purchasePrice + totalRefurbCosts;
+
+    // Calculate ROI (Refurbed Value - Total Investment)
+    const roi = refurbedValue - totalInvestment;
+
+    // Calculate ROI percentage
+    useMemo(() => {
+        if (totalInvestment === 0) return 0;
+        return (roi / totalInvestment) * 100;
+    }, [roi, totalInvestment]);
+//______________________________________________________
+    // FORMATTER FOR CURRENCY
+    const formatCurrency = (amount) => `£${amount?.toLocaleString() || '0'}`;
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-slate-700" />
-                <h3 className="text-xl font-bold text-slate-900">ROI & Refurbishment Calculator</h3>
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-4">
+                <Calculator className="w-5 h-5 text-slate-600" />
+                <h4 className="font-semibold text-slate-900">Investment Analysis</h4>
             </div>
 
-            {/* Current Property Status */}
-            <div className="bg-slate-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-slate-700 mb-3">Current Property Status</h4>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <p className="text-sm text-slate-600">Purchase Price</p>
-                        <p className="font-bold text-lg">{property.price}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-600">Size</p>
-                        <p className="font-bold text-lg">{property.sqft} sqft</p>
-                    </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                    <Badge variant={property.kitchenCondition === 'new' ? 'default' : 'secondary'}>
-                        Kitchen: {property.kitchenCondition}
-                    </Badge>
-                    <Badge variant={property.bathroomCondition === 'new' ? 'default' : 'secondary'}>
-                        Bathroom: {property.bathroomCondition}
-                    </Badge>
-                </div>
-            </div>
-
-            {/* Refurbishment Costs */}
-            <div className="space-y-4">
-                <h4 className="font-semibold text-slate-700">Refurbishment Costs</h4>
-
-                {property.kitchenCondition === 'old' && (
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                            Kitchen Renovation
-                        </label>
+            {/*______________________________________________________*/}
+            {/* USER INPUTS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Purchase Price Input */}
+                <div className="space-y-2">
+                    <label htmlFor="purchasePrice" className="text-sm font-medium block text-slate-700">
+                        Purchase Price
+                    </label>
+                    <div className="relative">
+                        <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <Input
+                            id="purchasePrice"
                             type="number"
-                            value={kitchenCost}
-                            onChange={(e) => setKitchenCost(Number(e.target.value))}
-                            className="w-full"
+                            placeholder="Enter purchase price"
+                            value={purchasePrice || ''}
+                            onChange={e => setPurchasePrice(parseFloat(e.target.value) || 0)}
+                            className="pl-10"
                         />
                     </div>
-                )}
-
-                {property.bathroomCondition === 'old' && (
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                            Bathroom Renovation
-                        </label>
-                        <Input
-                            type="number"
-                            value={bathroomCost}
-                            onChange={(e) => setBathroomCost(Number(e.target.value))}
-                            className="w-full"
-                        />
-                    </div>
-                )}
-
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Other Costs (flooring, painting, etc.)
-                    </label>
-                    <Input
-                        type="number"
-                        value={otherCosts}
-                        onChange={(e) => setOtherCosts(Number(e.target.value))}
-                        className="w-full"
-                    />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Expected Property Value After Refurb
+                {/* Home Report Value Input */}
+                <div className="space-y-2">
+                    <label htmlFor="homeReportValue" className="text-sm font-medium block text-slate-700">
+                        Home Report Value
                     </label>
-                    <Input
-                        type="number"
-                        value={expectedValue}
-                        onChange={(e) => setExpectedValue(Number(e.target.value))}
-                        className="w-full"
-                    />
+                    <div className="relative">
+                        <Home className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Input
+                            id="homeReportValue"
+                            type="number"
+                            placeholder="Enter home report value"
+                            value={homeReportValue || ''}
+                            onChange={e => setHomeReportValue(parseFloat(e.target.value) || 0)}
+                            className="pl-10"
+                        />
+                    </div>
                 </div>
             </div>
 
-            {/* Results */}
-            <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                <h4 className="font-semibold text-slate-700 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Investment Summary
-                </h4>
+            {/*______________________________________________________*/}
+            {/* INVESTMENT BREAKDOWN */}
+            <div className="bg-slate-50 p-6 rounded-lg space-y-4">
+                <h5 className="font-semibold text-slate-900 mb-3">Investment Breakdown</h5>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <p className="text-sm text-slate-600">Total Investment</p>
-                        <p className="font-bold text-lg">{formatCurrency(totalInvestment)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Investment Side */}
+                    <div className="space-y-3">
+                        <h6 className="text-sm font-medium text-slate-700 mb-2">Investment</h6>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-slate-600">Purchase Price:</span>
+                                <span className="font-medium">{formatCurrency(purchasePrice)}</span>
+                            </div>
+                            {bathroomNeedsRefurb && bathroomCostEstimate && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-600">Bathroom Refurb:</span>
+                                    <span className="font-medium">{formatCurrency(bathroomCostEstimate.total_cost)}</span>
+                                </div>
+                            )}
+                            {kitchenNeedsRefurb && kitchenCostEstimate && (
+                                <div className="flex justify-between">
+                                    <span className="text-slate-600">Kitchen Refurb:</span>
+                                    <span className="font-medium">{formatCurrency(kitchenCostEstimate.total_cost)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between border-t pt-2 font-semibold">
+                                <span className="text-slate-900">Total Investment:</span>
+                                <span className="text-slate-900">{formatCurrency(totalInvestment)}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-slate-600">Refurb Costs</p>
-                        <p className="font-bold text-lg">{formatCurrency(totalRefurbCost)}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-600">Expected Value</p>
-                        <p className="font-bold text-lg">{formatCurrency(expectedValue)}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-600">Projected Profit</p>
-                        <p className={`font-bold text-lg ${projectedProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(projectedProfit)}
-                        </p>
-                    </div>
-                </div>
 
-                <div className="border-t pt-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-slate-700">Return on Investment (ROI)</span>
-                        <span className={`text-2xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {roi.toFixed(1)}%
-            </span>
+                    {/* Value Side */}
+                    <div className="space-y-3">
+                        <h6 className="text-sm font-medium text-slate-700 mb-2">Value</h6>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-slate-600">Home Report Value:</span>
+                                <span className="font-medium">{formatCurrency(homeReportValue)}</span>
+                            </div>
+                            {valueIncrease > 0 && (
+                                <>
+                                    {bathroomNeedsRefurb && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Bathroom (+5%):</span>
+                                            <span className="font-medium text-green-600">+{formatCurrency(homeReportValue * 0.05)}</span>
+                                        </div>
+                                    )}
+                                    {kitchenNeedsRefurb && (
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600">Kitchen (+10%):</span>
+                                            <span className="font-medium text-green-600">+{formatCurrency(homeReportValue * 0.10)}</span>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            <div className="flex justify-between border-t pt-2 font-semibold">
+                                <span className="text-slate-900">Refurbed Value:</span>
+                                <span className="text-slate-900">{formatCurrency(refurbedValue)}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
-};
-
-export default ROICalculator;
+}

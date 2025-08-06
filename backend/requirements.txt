@@ -8,4 +8,4 @@ sqlalchemy
 aiosqlite
 pydantic
 openai>=1.0.0
-requests
+requestsrequests

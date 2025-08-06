@@ -1,21 +1,44 @@
+/**
+ * This hook manages toast notifications (popup messages) across the application.
+ * It provides a centralized state management system for showing success, error,
+ * and info messages to users.
+ *
+ * Usage:
+ * const { toast, dismiss } = useToast();
+ * toast({ title: "Success!", description: "Property saved" });
+ *
+ * Used by: Toaster component (/components/ui/toaster.jsx)
+ */
+
 import * as React from "react"
+//______________________________________________________
+// TOAST SETTINGS
+// Control how many toasts show at once and how long they last
+const TOAST_LIMIT = 1 // Show only 1 toast at a time
+const TOAST_REMOVE_DELAY = 1000000 // How long before we remove a toast automatically (ms)
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
-
+//______________________________________________________
+// ACTION TYPES
+// Names for the different things we can do with toasts
 const actionTypes = {
-    ADD_TOAST: "ADD_TOAST",
-    UPDATE_TOAST: "UPDATE_TOAST",
-    DISMISS_TOAST: "DISMISS_TOAST",
-    REMOVE_TOAST: "REMOVE_TOAST",
+    ADD_TOAST: "ADD_TOAST",  // Create a new toast
+    UPDATE_TOAST: "UPDATE_TOAST", // Change a toast that's already there
+    DISMISS_TOAST: "DISMISS_TOAST", // Hide a toast but don’t remove it yet
+    REMOVE_TOAST: "REMOVE_TOAST",// Remove a toast completely
 }
 
+//______________________________________________________
+// ID GENERATOR
+// Make a simple counter so each toast gets a unique string ID
 let count = 0
 function genId() {
     count = (count + 1) % Number.MAX_SAFE_INTEGER
     return count.toString()
 }
 
+//______________________________________________________
+// REMOVE QUEUE HANDLER
+// Keep track of timeouts so we can auto-remove toasts later
 const toastTimeouts = new Map()
 
 const addToRemoveQueue = (toastId) => {
@@ -32,6 +55,9 @@ const addToRemoveQueue = (toastId) => {
     toastTimeouts.set(toastId, timeout)
 }
 
+//______________________________________________________
+// REDUCER FUNCTION
+// Decide how to change our toast list based on actions
 export const reducer = (state, action) => {
     switch (action.type) {
         case actionTypes.ADD_TOAST:
@@ -79,6 +105,9 @@ export const reducer = (state, action) => {
     }
 }
 
+//______________________________________________________
+// STATE MANAGEMENT
+// Keep a list of listeners and the current toasts state
 const listeners = []
 let memoryState = { toasts: [] }
 
@@ -87,6 +116,9 @@ function dispatch(action) {
     listeners.forEach((listener) => listener(memoryState))
 }
 
+//______________________________________________________
+// TOAST CREATOR
+// Use this function to show a new toast and get helpers back
 export function toast(props) {
     const id = genId()
 
@@ -105,15 +137,15 @@ export function toast(props) {
             ...props,
             id,
             open: true,
-            onOpenChange: (open) => {
-                if (!open) dismiss()
-            },
         },
     })
 
     return { id, update, dismiss }
 }
 
+//______________________________________________________
+// CUSTOM HOOK: useToast
+// React hook to get toast list and functions in components
 export function useToast() {
     const [state, setState] = React.useState(memoryState)
 

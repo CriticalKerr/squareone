@@ -1,36 +1,50 @@
 import os
-from fastapi import FastAPI, HTTPException, Query
-from .models import Listing
-from .db import init_db, save_listing, get_all_listings, get_listing_by_id
-from contextlib import asynccontextmanager
-from .pipeline import run_pipeline, process_listing
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
+from .db import (get_all_listings, search_listings_by_location, get_listings_in_bounds,init_db)
+from .db import save_listing, get_listing_by_id
+from contextlib import asynccontextmanager
+from .pipeline import process_listing
 from fastapi.staticfiles import StaticFiles
+from .models import Listing
 
 #______________________________________________________
-# INITIALISE DATABASE ON STARTUP
-# Ensures database tables are created before handling any requests so listings can be stored and retrieved reliably.
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_db()
-    yield
-app = FastAPI(lifespan=lifespan)
+# APPLICATION SETUP
+# Creates the FastAPI app instance with metadata and configures CORS settings.
+app = FastAPI(title="Property Listings API", version="1.0.0")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-
-#______________________________________________________
-# VITE SERVER SET UP
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],  # In production, replace with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 #______________________________________________________
-# STATIC
+# DATABASE INITIALIZATION ON STARTUP
+# Ensures that the database is initialized before handling any requests.
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    await init_db()
+
+#______________________________________________________
+# LIFESPAN CONTEXT MANAGER
+# Provides an alternative way to initialize the database for the app's lifespan.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+#______________________________________________________
+# STATIC FILES
+# Mounts the 'static' directory to serve CSS, JS, images, and other static assets.
 app.mount(
     "/static",
     StaticFiles(directory=STATIC_DIR),
@@ -48,16 +62,57 @@ async def add_listing(listing: Listing):
     return listing
 
 #______________________________________________________
-# LIST ALL LISTINGS ENDPOINT
-# Retrieves every listing from the database and returns them along with a total count.
-@app.get("/listings")
-async def list_listings():
-    listings = await get_all_listings()
-    return {"listings": listings, "count": len(listings)}
+# HEALTH CHECK ENDPOINT
+# Provides a simple root endpoint to verify the API is running.
+@app.get("/")
+async def root():
+    return {"message": "Property Listings API is running"}
 
 #______________________________________________________
-# RUN ANALYSIS PIPELINE ENDPOINT
-# Triggers analysis of saved listings’ images and floorplans, optionally limiting to a specified number.
+# GET LISTINGS ENDPOINT
+# Retrieves all listings or filters by an optional search query on location, title, or property type.
+@app.get("/listings")
+async def get_listings(search: Optional[str] = Query(None, description="Search by location (address, title, property type)")):
+
+    try:
+        if search:
+            print(f"Searching for listings with query: '{search}'")
+            listings = await search_listings_by_location(search)
+        else:
+            print("Fetching all listings")
+            listings = await get_all_listings()
+        
+        print(f"Returning {len(listings)} listings")
+        return {"listings": listings}
+        
+    except Exception as e:
+        print(f"Error in get_listings: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+#______________________________________________________
+# GET LISTINGS IN BOUNDS ENDPOINT
+# Retrieves listings within specified geographic bounds (bounding box coordinates).
+@app.get("/listings/in-bounds")
+async def get_listings_in_bounds_endpoint(
+    minLng: float = Query(..., description="Minimum longitude"),
+    minLat: float = Query(..., description="Minimum latitude"), 
+    maxLng: float = Query(..., description="Maximum longitude"),
+    maxLat: float = Query(..., description="Maximum latitude")
+):
+    try:
+        print(f"Searching for listings in bounds: lng({minLng}, {maxLng}), lat({minLat}, {maxLat})")
+        listings = await get_listings_in_bounds(minLng, minLat, maxLng, maxLat)
+        
+        print(f"Found {len(listings)} listings in bounds")
+        return {"listings": listings}
+        
+    except Exception as e:
+        print(f"Error in get_listings_in_bounds: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+#______________________________________________________
+# ANALYZE LISTING ENDPOINT
+# Triggers analysis of a single listing's images and floorplans, saving the processed results back to the database.
 @app.post("/analyze-listing/{listing_id}")
 async def analyze_single_listing(listing_id: int):
     listing = await get_listing_by_id(listing_id)
@@ -68,32 +123,3 @@ async def analyze_single_listing(listing_id: int):
     await save_listing(processed)
 
     return {"message": f"Analysis complete for listing ID {listing_id}"}
-
-#______________________________________________________
-# HEALTH-CHECK ENDPOINT
-# Provides a simple confirmation that the API service is running and reachable.
-@app.get("/")
-async def root():
-    return {"message": "Property Analysis API is running"}
-
-#______________________________________________________
-# GALLERY
-@app.get("/gallery")
-async def get_gallery():
-    """
-    Return a list of all images + their generated refurb renders (if any).
-    """
-    listings = await get_all_listings()
-    gallery = []
-    for l in listings:
-        for cond in l.get("condition_analysis", []):
-            analysis = cond.get("analysis", {})
-            render = analysis.get("refurb_render_url")
-            # only include entries that actually have a render
-            if render:
-                gallery.append({
-                    "original_url": cond["image_url"],
-                    "render_url": render,
-                    "state": analysis.get("state"),
-                })
-    return {"gallery": gallery}
