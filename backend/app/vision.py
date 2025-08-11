@@ -63,7 +63,7 @@ def _call_vision_with_retry(prompt: str, image_url: str, max_retries: int = 5) -
 def identify_room(image_url: str) -> dict:
     prompt = (
         "What type of room is this? bathroom, kitchen, living room, bedroom, or other."
-        "Describe it in detail including layout, fixtures, materials, lighting, and condition. "
+        "Describe it in detail, in approx 35 words, including layout, fixtures, materials, lighting, and condition. "
         "Be objective and descriptive — don't reimagine it yet."
         " Reply in JSON with keys: type (string), confidence (0-1 float), room_description (string)."
     )
@@ -190,11 +190,12 @@ def refurb_cost_estimate(original_image_url: str, refurb_image_url: str, room_ty
     - total_cost (float): Total estimated cost in GBP
     - currency (string): "GBP"
     - breakdown (object): Cost breakdown by category with amounts
-    - detailed_description (string): Comprehensive description of the refurbishment work and costs in exactly 100 words
+    - detailed_description (string): Comprehensive description of the refurbishment work and costs in exactly 150 words
     - materials_list (array): List of major materials/items needed
     - upgraded_items (array): List of upgraded fixtures
     - labor_categories (array): Types of trades/labor required
-    - timeline_weeks (float): Estimated number of weeks required for the refurbishment 
+    - timeline_weeks (float): Estimated number of weeks required for the refurbishment
+    - data_used (array): URL links to all data sources used in the analysis
     """
 
     # Download original image
