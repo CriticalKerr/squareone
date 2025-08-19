@@ -8,4 +8,7 @@ sqlalchemy
 aiosqlite
 pydantic
 openai>=1.0.0
-requestsrequests
+requests
+firebase-admin
+pillow
+python-multipart

@@ -2,7 +2,7 @@ import os                                                     #for file paths an
 from fastapi import FastAPI, Query, HTTPException             #for api app, query params, and http errors
 from fastapi.middleware.cors import CORSMiddleware            #for allowing browser apps to call this api
 from typing import Optional                                   #for optional type hints
-from .db import (get_all_listings, search_listings_by_location, get_listings_in_bounds,init_db)  #for database reads and setup
+from .db import (get_all_listings, search_listings_by_location, get_listings_in_bounds, init_db)  #for database reads and setup
 from .db import save_listing, get_listing_by_id               #for saving a listing and fetching one by id
 from contextlib import asynccontextmanager                    #for lifespan context
 from .pipeline import process_listing, run_pipeline           #for image/plan analysis and batch pipeline
@@ -12,7 +12,7 @@ from .models import Listing                                   #for request/respo
 #______________________________________________________
 # APPLICATION SETUP
 #creates the fastapi app with a title and version
-app = FastAPI(title="Property Listings API", version="1.0.0")
+app = FastAPI(title="Property Listings API (Firestore)", version="2.0.0")
 
 #add cors so the frontend can talk to this api from another domain
 app.add_middleware(
@@ -25,11 +25,11 @@ app.add_middleware(
 
 #______________________________________________________
 # DATABASE INITIALIZATION ON STARTUP
-#makes sure tables exist before the first request hits the server
+#makes sure database connection is ready before the first request hits the server
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
-    await init_db()  #create tables if missing
+    await init_db()  #initialize Firestore connection
 
 #______________________________________________________
 # LIFESPAN CONTEXT MANAGER
@@ -57,7 +57,7 @@ app.mount(
 #accepts a listing json, validates it, saves it, and echoes it back
 @app.post("/add-listing", response_model=Listing)
 async def add_listing(listing: Listing):
-    success = await save_listing(listing.model_dump())  #write to database
+    success = await save_listing(listing.model_dump())  #write to Firestore
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save listing")  #tell client something went wrong
     return listing  #return what we saved
@@ -67,7 +67,7 @@ async def add_listing(listing: Listing):
 #simple check so we know the api is alive
 @app.get("/")
 async def root():
-    return {"message": "Property Listings API is running"}
+    return {"message": "Property Listings API is running with Firestore! 🚀"}
 
 #______________________________________________________
 # GET LISTINGS ENDPOINT
@@ -79,10 +79,10 @@ async def get_listings(search: Optional[str] = Query(None, description="Search b
             print(f"Searching for listings with query: '{search}'")  #debug log
             listings = await search_listings_by_location(search)    #filtered results
         else:
-            print("Fetching all listings") #debug log
+            print("Fetching all listings from Firestore") #debug log
             listings = await get_all_listings() #all results
 
-        print(f"Returning {len(listings)} listings") #debug log
+        print(f"Returning {len(listings)} listings from Firestore") #debug log
         return {"listings": listings}  #json response
 
     except Exception as e:
@@ -101,9 +101,9 @@ async def get_listings_in_bounds_endpoint(
 ):
     try:
         print(f"Searching for listings in bounds: lng({minLng}, {maxLng}), lat({minLat}, {maxLat})")  #debug log
-        listings = await get_listings_in_bounds(minLng, minLat, maxLng, maxLat)  #db call
+        listings = await get_listings_in_bounds(minLng, minLat, maxLng, maxLat)  #Firestore call
 
-        print(f"Found {len(listings)} listings in bounds")  #debug log
+        print(f"Found {len(listings)} listings in bounds from Firestore")  #debug log
         return {"listings": listings}  #json response
 
     except Exception as e:
@@ -114,13 +114,13 @@ async def get_listings_in_bounds_endpoint(
 # ANALYSE LISTING ENDPOINT
 #processes one listing: classifies rooms, creates refurb, estimates cost, then saves results
 @app.post("/analyze-listing/{listing_id}")
-async def analyse_single_listing(listing_id: int):
-    listing = await get_listing_by_id(listing_id) #fetch the listing
+async def analyse_single_listing(listing_id: str):  # Changed from int to str for Firestore IDs
+    listing = await get_listing_by_id(listing_id) #fetch the listing from Firestore
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")  #not found
 
     processed = await process_listing(listing)  #run the pipeline for this one
-    await save_listing(processed)  #store updated fields
+    await save_listing(processed)  #store updated fields in Firestore
 
     return {"message": f"Analysis complete for listing ID {listing_id}"}  #success message
 
@@ -131,4 +131,3 @@ async def analyse_single_listing(listing_id: int):
 async def analyse_all_listings(include_testing: bool = True):
     result = await run_pipeline(include_testing=include_testing)  #batch process
     return {"message": "Analysis complete for all listings", "details": result}  #return summary
-

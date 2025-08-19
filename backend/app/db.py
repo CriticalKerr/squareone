@@ -1,245 +1,196 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Float, JSON, select, or_, and_
-from typing import List
 import os
+from typing import List, Optional, Dict, Any
+from firebase_admin import credentials, initialize_app, firestore
+import firebase_admin
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+class FirestoreDB:
+    def __init__(self):
+        self._db = None
+        self._initialize_firebase()
+
+    def _initialize_firebase(self):
+        """Initialize Firebase Admin SDK if not already initialized"""
+        if not firebase_admin._apps:
+            cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', './firebase-service-account.json')
+            project_id = os.getenv('FIREBASE_PROJECT_ID', 'squareone-47b22')
+
+            if not os.path.exists(cred_path):
+                raise Exception(f"Firebase credentials not found at {cred_path}")
+
+            cred = credentials.Certificate(cred_path)
+            initialize_app(cred, {'projectId': project_id})
+
+        self._db = firestore.client()
+
+    @property
+    def db(self):
+        """Get Firestore database client"""
+        if self._db is None:
+            self._initialize_firebase()
+        return self._db
+
+# Create a singleton instance
+firestore_db = FirestoreDB()
 
 #______________________________________________________
-# DATABASE CONFIGURATION
-# Make a database connection and session maker so we can save and get items
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///./listings.db')
-engine = create_async_engine(DATABASE_URL, echo=True) # This talks to the database and shows SQL in logs
-AsyncSessionLocal = async_sessionmaker( # Create an async session factory
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False # Keep data available after saving
-)
-Base = declarative_base() # Base class for our tables
-
+# FIRESTORE DATABASE FUNCTIONS
 #______________________________________________________
-# LISTING TABLE MODEL
-# Define how a property listing looks in the database
-class ListingORM(Base):
-    __tablename__ = 'listings'
-    id = Column(Integer, primary_key=True, index=True)
-    listing_link = Column(String, nullable=False)
-    title = Column(String, nullable=False)
-    address = Column(String, nullable=False)
-    price = Column(String, nullable=False)
-    latitude = Column(Float, default=0.0)
-    longitude = Column(Float, default=0.0)
-    image_urls = Column(JSON, default=list)
-    floorplan_urls = Column(JSON, default=list)
-    bedrooms_count = Column(Integer, default=0)
-    bathrooms_count = Column(Integer, default=0)
-    property_type = Column(String, default='')
-
-    # Defines the listings
-    condition_analysis   = Column(JSON, default=list)
-    floorplan_analysis   = Column(JSON, default=list)
-    refurb_cost_estimate = Column(JSON, default=dict)
-
-
-
-#______________________________________________________
-# MAKE TABLES
-# Create the listings table if it doesn't already exist
-async def create_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
 async def init_db():
-    await create_tables()
+    """Initialize database - for Firestore, this is mostly a no-op"""
+    print("✅ Firestore database ready")
+    return True
 
 #______________________________________________________
 # SAVE A LISTING
-# Put a listing into the database or update it if it's already there
 async def save_listing(listing_data: dict) -> bool:
-    async with AsyncSessionLocal() as session:
-        try:
-            obj = ListingORM(**listing_data)
-            await session.merge(obj)
-            await session.commit()
-            return True
-        except Exception as e:
-            await session.rollback()
-            print(f"Error saving listing: {e}")
-            return False
+    """Save or update a listing in Firestore"""
+    try:
+        db = firestore_db.db
 
+        # If there's an 'id' field, use it as document ID and remove from data
+        doc_id = listing_data.pop('id', None)
 
+        if doc_id:
+            # Update existing document
+            doc_ref = db.collection('listings').document(str(doc_id))
+            doc_ref.set(listing_data, merge=True)
+            print(f"Updated listing with ID: {doc_id}")
+        else:
+            # Create new document
+            doc_ref = db.collection('listings').add(listing_data)[1]
+            print(f"Created new listing with ID: {doc_ref.id}")
 
-#______________________________________________________
-# FETCH SINGLE LISTING BY ID
-# Retrieves a specific listing by its ID
-async def get_listing_by_id(listing_id: int) -> dict:
-    async with AsyncSessionLocal() as session:
-        try:
-            stmt = select(ListingORM).where(ListingORM.id == listing_id)
-            result = await session.execute(stmt)
-            db_listing = result.scalar_one_or_none()
-
-            if not db_listing:
-                return None
-
-            listing_dict = {
-                "id": db_listing.id,
-                "listing_link": db_listing.listing_link,
-                "title": db_listing.title,
-                "address": db_listing.address,
-                "price": db_listing.price,
-                "latitude": db_listing.latitude,
-                "longitude": db_listing.longitude,
-                "image_urls": db_listing.image_urls or [],
-                "floorplan_urls": db_listing.floorplan_urls or [],
-                "bedrooms_count": db_listing.bedrooms_count,
-                "bathrooms_count": db_listing.bathrooms_count,
-                "property_type": db_listing.property_type,
-                "condition_analysis": db_listing.condition_analysis or [],
-                "floorplan_analysis": db_listing.floorplan_analysis or [],
-            }
-            return listing_dict
-        except Exception as e:
-            print(f"Error retrieving listing {listing_id}: {e}")
-            return None
-
-#______________________________________________________
-# FETCH SINGLE LISTING BY ID
-# Retrieves a specific listing by its ID
-async def get_listing_by_id(listing_id: int) -> dict:
-    async with AsyncSessionLocal() as session:
-        try:
-            stmt = select(ListingORM).where(ListingORM.id == listing_id)
-            result = await session.execute(stmt)
-            db_listing = result.scalar_one_or_none()
-
-            if not db_listing:
-                print(f"No listing found with ID {listing_id}")
-                return None
-
-            listing_dict = {
-                "id": db_listing.id,
-                "listing_link": db_listing.listing_link,
-                "title": db_listing.title,
-                "address": db_listing.address,
-                "price": db_listing.price,
-                "latitude": db_listing.latitude,
-                "longitude": db_listing.longitude,
-                "image_urls": db_listing.image_urls or [],
-                "floorplan_urls": db_listing.floorplan_urls or [],
-                "bedrooms_count": db_listing.bedrooms_count,
-                "bathrooms_count": db_listing.bathrooms_count,
-                "property_type": db_listing.property_type,
-                "condition_analysis": db_listing.condition_analysis or [],
-                "floorplan_analysis": db_listing.floorplan_analysis or [],
-                "refurb_cost_estimate": db_listing.refurb_cost_estimate or {},
-            }
-            print(f"Successfully retrieved listing {listing_id}")  # Added debug logging
-            return listing_dict
-        except Exception as e:
-            print(f"Error retrieving listing {listing_id}: {e}")
-            return None
-
-#______________________________________________________
-# HELPER: CONVERT ORM TO DICT
-# Turn a database object into a normal Python dict
-def listing_orm_to_dict(db_listing: ListingORM) -> dict:
-    return {
-        "id": db_listing.id,
-        "listing_link": db_listing.listing_link,
-        "title": db_listing.title,
-        "address": db_listing.address,
-        "price": db_listing.price,
-        "latitude": db_listing.latitude,
-        "longitude": db_listing.longitude,
-        "image_urls": db_listing.image_urls or [],
-        "floorplan_urls": db_listing.floorplan_urls or [],
-        "bedrooms_count": db_listing.bedrooms_count,
-        "bathrooms_count": db_listing.bathrooms_count,
-        "property_type": db_listing.property_type,
-        "condition_analysis": db_listing.condition_analysis or [],
-        "floorplan_analysis": db_listing.floorplan_analysis or [],
-        "refurb_cost_estimate": db_listing.refurb_cost_estimate or {},
-    }
+        return True
+    except Exception as e:
+        print(f"Error saving listing to Firestore: {e}")
+        return False
 
 #______________________________________________________
 # GET ALL LISTINGS
-# Grab every listing in the database and return a list of dicts
 async def get_all_listings() -> List[dict]:
-    async with AsyncSessionLocal() as session:
-        try:
-            stmt = select(ListingORM)
-            result = await session.execute(stmt)
-            db_listings = result.scalars().all()
-            listings = [listing_orm_to_dict(db_listing) for db_listing in db_listings]
-            return listings
-        except Exception as e:
-            print(f"Error retrieving listings: {e}")
-            return []
+    """Get all listings from Firestore"""
+    try:
+        db = firestore_db.db
+        docs = db.collection('listings').stream()
+
+        listings = []
+        for doc in docs:
+            listing_data = doc.to_dict()
+            listing_data['id'] = doc.id  # Add Firestore document ID
+            listings.append(listing_data)
+
+        print(f"Retrieved {len(listings)} listings from Firestore")
+        return listings
+    except Exception as e:
+        print(f"Error retrieving all listings from Firestore: {e}")
+        return []
+
+#______________________________________________________
+# GET LISTING BY ID
+async def get_listing_by_id(listing_id: str) -> Optional[dict]:
+    """Get a specific listing by its Firestore document ID"""
+    try:
+        db = firestore_db.db
+        doc_ref = db.collection('listings').document(str(listing_id))
+        doc = doc_ref.get()
+
+        if doc.exists:
+            listing_data = doc.to_dict()
+            listing_data['id'] = doc.id
+            print(f"Retrieved listing with ID: {listing_id}")
+            return listing_data
+        else:
+            print(f"No listing found with ID: {listing_id}")
+            return None
+    except Exception as e:
+        print(f"Error retrieving listing {listing_id} from Firestore: {e}")
+        return None
 
 #______________________________________________________
 # SEARCH LISTINGS BY LOCATION
-# Look for listings where the address, title, or type has the search words
 async def search_listings_by_location(search_query: str) -> List[dict]:
-    async with AsyncSessionLocal() as session:
-        try:
-            search_term = f"%{search_query.strip().lower()}%"
-            
-            stmt = select(ListingORM).where(
-                or_(
-                    ListingORM.address.ilike(search_term),
-                    ListingORM.title.ilike(search_term),
-                    ListingORM.property_type.ilike(search_term)
-                )
-            )
-            
-            result = await session.execute(stmt)
-            db_listings = result.scalars().all()
-            listings = [listing_orm_to_dict(db_listing) for db_listing in db_listings]
-            
-            print(f"Search for '{search_query}' returned {len(listings)} results")
-            return listings
-        except Exception as e:
-            print(f"Error searching listings by location: {e}")
-            return []
+    """Search listings by address, title, or property type"""
+    try:
+        db = firestore_db.db
+        search_term = search_query.strip().lower()
+
+        # Firestore doesn't have case-insensitive search, so we'll get all and filter
+        docs = db.collection('listings').stream()
+
+        matching_listings = []
+        for doc in docs:
+            listing_data = doc.to_dict()
+            listing_data['id'] = doc.id
+
+            # Check if search term matches any of these fields (case-insensitive)
+            address = (listing_data.get('address', '') or '').lower()
+            title = (listing_data.get('title', '') or '').lower()
+            property_type = (listing_data.get('property_type', '') or '').lower()
+
+            if (search_term in address or
+                    search_term in title or
+                    search_term in property_type):
+                matching_listings.append(listing_data)
+
+        print(f"Search for '{search_query}' returned {len(matching_listings)} results")
+        return matching_listings
+    except Exception as e:
+        print(f"Error searching listings in Firestore: {e}")
+        return []
 
 #______________________________________________________
 # GET LISTINGS IN BOUNDS
-# Find listings inside the box defined by min/max latitude and longitude
 async def get_listings_in_bounds(min_lng: float, min_lat: float, max_lng: float, max_lat: float) -> List[dict]:
-    async with AsyncSessionLocal() as session:
-        try:
-            stmt = select(ListingORM).where(
-                and_(
-                    ListingORM.longitude >= min_lng,
-                    ListingORM.longitude <= max_lng,
-                    ListingORM.latitude >= min_lat,
-                    ListingORM.latitude <= max_lat
-                )
-            )
-            
-            result = await session.execute(stmt)
-            db_listings = result.scalars().all()
-            listings = [listing_orm_to_dict(db_listing) for db_listing in db_listings]
-            
-            print(f"Bounds search returned {len(listings)} results")
-            return listings
-        except Exception as e:
-            print(f"Error retrieving listings in bounds: {e}")
-            return []
+    """Get listings within geographical bounds"""
+    try:
+        db = firestore_db.db
+
+        # Firestore geo queries are complex, so we'll get all and filter in Python
+        docs = db.collection('listings').stream()
+
+        listings_in_bounds = []
+        for doc in docs:
+            listing_data = doc.to_dict()
+            listing_data['id'] = doc.id
+
+            lat = listing_data.get('latitude', 0.0)
+            lng = listing_data.get('longitude', 0.0)
+
+            # Check if coordinates are within bounds
+            if (min_lng <= lng <= max_lng and min_lat <= lat <= max_lat):
+                listings_in_bounds.append(listing_data)
+
+        print(f"Bounds search returned {len(listings_in_bounds)} results")
+        return listings_in_bounds
+    except Exception as e:
+        print(f"Error retrieving listings in bounds from Firestore: {e}")
+        return []
 
 #______________________________________________________
 # DEBUG: CHECK ALL LISTINGS
-# Print out IDs and titles of all listings to see what's inside
 async def debug_check_listings():
-    async with AsyncSessionLocal() as session:
-        try:
-            stmt = select(ListingORM.id, ListingORM.title)
-            result = await session.execute(stmt)
-            listings = result.all()
-            print(f"Found {len(listings)} listings in database:")
-            for listing in listings:
-                print(f"  ID: {listing.id}, Title: {listing.title}")
-            return listings
-        except Exception as e:
-            print(f"Error checking listings: {e}")
-            return []
+    """Print out IDs and titles of all listings"""
+    try:
+        db = firestore_db.db
+        docs = db.collection('listings').stream()
+
+        listings = []
+        for doc in docs:
+            listing_data = doc.to_dict()
+            listings.append({
+                'id': doc.id,
+                'title': listing_data.get('title', 'No title')
+            })
+
+        print(f"Found {len(listings)} listings in Firestore:")
+        for listing in listings:
+            print(f"  ID: {listing['id']}, Title: {listing['title']}")
+        return listings
+    except Exception as e:
+        print(f"Error checking listings in Firestore: {e}")
+        return []
