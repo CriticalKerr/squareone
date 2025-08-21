@@ -131,3 +131,45 @@ async def analyse_single_listing(listing_id: str):  # Changed from int to str fo
 async def analyse_all_listings(include_testing: bool = True):
     result = await run_pipeline(include_testing=include_testing)  #batch process
     return {"message": "Analysis complete for all listings", "details": result}  #return summary
+
+#______________________________________________________
+# LIKE PROPERTY ENDPOINT
+#accepts a property id (no longer tracks count)
+@app.post("/api/properties/{property_id}/like")
+async def like_property(property_id: str):
+    """Like a property (frontend handles state)"""
+    try:
+        # Just verify the property exists
+        listing = await get_listing_by_id(property_id)
+        if not listing:
+            raise HTTPException(status_code=404, detail="Property not found")
+
+        print(f"Property {property_id} liked")  #debug log
+        return {
+            "message": "Property liked",
+            "property_id": property_id
+        }
+    except Exception as e:
+        print(f"Error liking property {property_id}: {e}")  #server log
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+#______________________________________________________
+# UNLIKE PROPERTY ENDPOINT
+#accepts a property id (no longer tracks count)
+@app.delete("/api/properties/{property_id}/like")
+async def unlike_property(property_id: str):
+    """Unlike a property (frontend handles state)"""
+    try:
+        listing = await get_listing_by_id(property_id)
+        if not listing:
+            raise HTTPException(status_code=404, detail="Property not found")
+
+        print(f"Property {property_id} unliked")  #debug log
+        return {
+            "message": "Property unliked",
+            "property_id": property_id
+        }
+    except Exception as e:
+        print(f"Error unliking property {property_id}: {e}")  #server log
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
