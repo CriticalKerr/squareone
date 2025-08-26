@@ -208,16 +208,16 @@ def generate_refurb_edit(image_url: str, room_type: str, refurb_type: str = "bas
     image_bytes = base64.b64decode(image_base64)
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
 
-    #step 5:save the image under static/refurb/<type>/<uuid>.png
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  #project root
-    refurb_base_dir = os.path.join(BASE_DIR, "static", "refurb")            #base refurb folder
+    #step 5: save the image under frontend/public/images/refurb/<type>/<uuid>.png
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Go up to project root
+    refurb_base_dir = os.path.join(BASE_DIR, "frontend", "public", "images", "refurb")     # Point to frontend/public
     refurb_type_dir = os.path.join(refurb_base_dir, refurb_type.lower())    #subfolder per style
     os.makedirs(refurb_type_dir, exist_ok=True)                             #make folders if missing
     filename = f"{uuid.uuid4().hex}_{refurb_type}.png"                      #unique file name
     out_path = os.path.join(refurb_type_dir, filename)                      #full path
-    img.save(out_path, format="PNG")                                        #write file
+    img.save(out_path, format="PNG")
 
-    return f"/static/refurb/{refurb_type.lower()}/{filename}"               #return url path
+    return f"/static/images/refurb/{refurb_type.lower()}/{filename}"               #return url path              #return url path
 
 #______________________________________________________________________________________
 #______________________________ COST ESTIMATE GENERATION _______________________________

@@ -42,15 +42,7 @@ async def lifespan(app: FastAPI):
 #figure out where the static folder lives on disk
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  #project root
 STATIC_DIR = os.path.join(BASE_DIR, "static") #static files folder
-
-#______________________________________________________
-# STATIC FILES
-#serves /static/* urls directly from the static directory
-app.mount(
-    "/static",
-    StaticFiles(directory=STATIC_DIR),
-    name="static",
-)
+FRONTEND_PUBLIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "public")
 
 #______________________________________________________
 # ADD LISTING ENDPOINT
@@ -173,3 +165,15 @@ async def unlike_property(property_id: str):
         print(f"Error unliking property {property_id}: {e}")  #server log
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+#______________________________________________________
+# STATIC FILES (MOUNT LAST TO AVOID OVERRIDING API ROUTES)
+#serves static files from frontend/public directory at /static/* URLs
+# Important: This must be at the end so it doesn't override API routes
+try:
+    if os.path.exists(FRONTEND_PUBLIC_DIR):
+        app.mount("/static", StaticFiles(directory=FRONTEND_PUBLIC_DIR), name="static")
+        print(f"Mounted static files from: {FRONTEND_PUBLIC_DIR}")
+    else:
+        print(f"Static directory not found: {FRONTEND_PUBLIC_DIR}")
+except Exception as e:
+    print(f"Could not mount static files: {e}")

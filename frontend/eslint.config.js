@@ -5,6 +5,15 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 //______________________________________________________
+// ESLINT CONFIGURATION
+// This file tells ESLint how to check our JavaScript and React code for:
+// - Syntax errors and bugs
+// - Code style consistency
+// - React-specific best practices
+// - Unused variables and imports
+//______________________________________________________
+
+//______________________________________________________
 // ESLINT CONFIG SETUP
 // Tell ESLint what rules and settings to use for JS and JSX files
 export default defineConfig([

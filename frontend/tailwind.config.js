@@ -4,6 +4,14 @@
 module.exports = {
 
   //______________________________________________________
+// TAILWIND CSS CONFIGURATION
+// This file configures Tailwind CSS to:
+// - Scan the React files for class names to include in the final CSS
+// - Add custom colors that match the design system
+// - Enable animation utilities for smooth transitions
+// - Purge unused styles to keep bundle size small
+
+  //______________________________________________________
   // FILES TO SCAN
   // Where Tailwind should look for class names in your code
   content: ["./src/**/*.{js,jsx,ts,tsx}"],

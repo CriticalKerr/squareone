@@ -1,0 +1,9 @@
+{
+  "name": "squareone",
+  "version": "1.0.0",
+  "description": "SquareOne Property Platform",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ]
+}

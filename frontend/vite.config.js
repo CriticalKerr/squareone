@@ -1,58 +1,57 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, URL } from 'node:url'
 
 //______________________________________________________
-// EMULATE __dirname
-// Turn the module URL into a file path and get its folder name
-const __filename = fileURLToPath(import.meta.url)
-const __dirname  = path.dirname(__filename)
-
+// VITE CONFIGURATION
+// This file configures Vite (the build tool) to:
+// - Bundle and serve the React app during development
+// - Set up path aliases (@ = ./src folder)
+// - Proxy API calls to the Python backend
+// - Build optimised production bundles
+// https://vitejs.dev/config/
 //______________________________________________________
-// VITE CONFIG
-// Export settings so Vite knows how to build and run our app
+
 export default defineConfig({
-  plugins: [react()], // Plugins we want Vite to use
-
-  //______________________________________________________
-  // PATH ALIASES
-  // Let us use '@' to mean the src folder and fix react-map-gl imports
+  plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      // point react-map-gl imports to its ESM build
-      'react-map-gl': path.resolve(
-          __dirname,
-          'node_modules/react-map-gl/dist/esm/index.js'
-      )
-    }
+      "@": fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
-
-  //______________________________________________________
-  // DEV SERVER PROXY
-  // Forward requests for /static to our backend at localhost:8000
   server: {
     proxy: {
-      // forward /static/* to your FastAPI server on localhost:8000
+      '/api': {
+        target: 'http://localhost:8000',  // LOCAL BACKEND
+        //target: 'https://squareone-backend-730103287771.us-central1.run.app', // CLOUD BACKEND
+        changeOrigin: true,
+        rewrite: (path) => {
+          console.log('Proxying request:', path);
+          return path;
+        },
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.log('Proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req) => {
+            console.log('Proxying:', req.method, req.url, '→', proxyReq.getHeader('host') + req.url);
+          });
+        },
+      },
       '/static': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8000',  // LOCAL BACKEND
+        //target: 'https://squareone-backend-730103287771.us-central1.run.app', // CLOUD BACKEND
         changeOrigin: true,
       }
     }
   },
-
-  //______________________________________________________
-  // GLOBAL DEFINE
-  // Prevent Node.js stuff from ending up in the browser
-  define: {
-    global: 'globalThis',
-  },
-
-  //______________________________________________________
-  // DEPENDENCY OPTIMIZATION
-  // Skip optimizing these packages during dev to avoid errors
-  optimizeDeps: {
-    exclude: ['postcss', 'autoprefixer']
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      }
+    }
   }
 })

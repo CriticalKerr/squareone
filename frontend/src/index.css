@@ -1,9 +1,17 @@
+/*______________________________________________________*/
+/* TAILWIND DIRECTIVES */
+/* include tailwind base, components, utilities */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+/*______________________________________________________*/
+/* DESIGN SYSTEM NOTE */
+/* all theme colors, fonts, and tokens live here */
 
+/*______________________________________________________*/
+/* THEME TOKENS: LIGHT MODE */
+/* set css variables for light theme */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -37,22 +45,18 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
+  /*______________________________________________________*/
+  /* THEME TOKENS: DARK MODE */
+  /* override variables when .dark is on the html/body */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -81,6 +85,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -92,6 +97,9 @@
   }
 }
 
+/*______________________________________________________*/
+/* GLOBAL APPLIES */
+/* set default borders and body colors using the tokens */
 @layer base {
   * {
     @apply border-border;
@@ -102,16 +110,218 @@
   }
 }
 
-/* Custom styles for map markers */
+/*______________________________________________________*/
+/* MAP UI TWEAKS */
+/* style map markers and hide noisy mapbox ui bits */
+/* custom styles for clickable property pins */
 .property-marker {
   cursor: pointer;
 }
 
+/* hide the mapbox attribution line for a cleaner look */
 .mapboxgl-ctrl-attrib {
   display: none !important;
 }
 
+/* nudge the bottom-right controls away from edges */
 .mapboxgl-ctrl-bottom-right {
   bottom: 20px !important;
   right: 20px !important;
+}
+
+/*______________________________________________________*/
+/* KEYFRAMES */
+/* tiny animations we can reuse across the app */
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgb(0, 0, 0);
+    box-shadow: 0 0 0 0 rgba(15, 23, 42, 0.7);
+  }
+  50% {
+    border-color: rgb(0, 0, 0);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+@keyframes gentle-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+@keyframes glow {
+  0%, 100% {
+    border-color: rgb(0, 0, 0);
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    border-color: rgb(0, 0, 0);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* HEART ANIMATIONS */
+@keyframes love-bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+@keyframes heart-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0px rgba(0, 0, 0, 0.7));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.7));
+  }
+}
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Heart pulse animation for map markers */
+@keyframes heart-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+@keyframes sparkle-burst {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Gentle bounce for loved state */
+@keyframes love-bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-4px); }
+  60% { transform: translateY(-2px); }
+}
+
+/*______________________________________________________*/
+/* ANIMATION UTILITIES */
+/* used inside the CostScenarioCard */
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+.animate-gentle-shake {
+  animation: gentle-shake 0.5s ease-in-out infinite;
+}
+
+.animate-gentle-shake-continuous {
+  animation: gentle-shake 1s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* NEW LOVE ANIMATION CLASSES */
+.animate-love-bounce {
+  animation: love-bounce 0.4s ease-out;
+}
+
+.animate-love-bounce-continuous {
+  animation: love-bounce 1s ease-out infinite;
+}
+
+.animate-heart-pulse {
+  animation: heart-pulse 1s ease-in-out infinite;
+}
+
+.animate-heart-pop {
+  animation: heart-pop 0.6s ease-out;
+}
+
+.animate-heart-pop-continuous {
+  animation: heart-pop 0.6s ease-out infinite;
+}
+
+.animate-sparkle-burst {
+  animation: sparkle-burst 0.8s ease-out;
+}
+
+/* note:this rule below overrides the earlier .animate-gentle-shake */
+/* note:0.5 at the end is not seconds; add "s" if you meant delay or use "infinite" for looping */
+.animate-gentle-shake {
+  animation: gentle-shake 0.5s ease-in-out 0.5;
+}
+
+/*______________________________________________________*/
+/* EMPTY FIELD HIGHLIGHT */
+/* make empty inputs stand out so users notice them */
+.highlight-empty {
+  border-color: rgb(0, 0, 0) !important;
+  background-color: rgb(255, 255, 255) !important;
+}
+
+/*______________________________________________________*/
+/* MOBILE OPTIMIZATIONS */
+/* Safe area support for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Touch optimization */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  /* Prevent zoom on input focus */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Better mobile scrolling */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
 }
