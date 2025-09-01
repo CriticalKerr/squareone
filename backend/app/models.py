@@ -1,3 +1,4 @@
+#Rule book that says what info each property must have (price, bedrooms, etc).
 
 from typing import List, Dict, Any
 from pydantic import BaseModel

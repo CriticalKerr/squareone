@@ -22,8 +22,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',  // LOCAL BACKEND
-        //target: 'https://squareone-backend-730103287771.us-central1.run.app', // CLOUD BACKEND
+        target: 'http://localhost:8000',
+        //target: 'https://squareone-backend-730103287771.us-central1.run.app', // GOOGLE CLOUD BACKEND
         changeOrigin: true,
         rewrite: (path) => {
           console.log('Proxying request:', path);
@@ -39,8 +39,8 @@ export default defineConfig({
         },
       },
       '/static': {
-        target: 'http://localhost:8000',  // LOCAL BACKEND
-        //target: 'https://squareone-backend-730103287771.us-central1.run.app', // CLOUD BACKEND
+        target: 'http://localhost:8000',
+        //target: 'https://squareone-backend-730103287771.us-central1.run.app', // GOOGLE CLOUD BACKEND
         changeOrigin: true,
       }
     }

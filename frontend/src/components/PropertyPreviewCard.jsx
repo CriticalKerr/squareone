@@ -1,13 +1,13 @@
 //______________________________________________________
 // IMPORTS
-// Bring in React, some helpful icons, and the Badge UI pill
+//bring in React, some helpful icons, and the Badge UI pill
 import React from 'react';
 import { Bed, Bath, Square, Sparkles, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 //______________________________________________________
 // FORMAT PRICE (GBP)
-// Turn a value into a pound price string like "£350,000"
+//turn a value into a pound price string like "£350,000"
 const formatPrice = (price) => {
     if (!price) return ''; // show nothing if there is no price
 
@@ -29,7 +29,7 @@ const formatPrice = (price) => {
 
 //______________________________________________________
 // PARSE CONDITION ANALYSIS
-// Read kitchen and bathroom condition from the property object
+//read kitchen and bathroom condition from the property object
 const parseConditionAnalysis = (property) => {
     try {
         // condition_analysis can be an array or a JSON string. Handle both.
@@ -57,12 +57,12 @@ const parseConditionAnalysis = (property) => {
 
 //______________________________________________________
 // CHECK ROOM RENOVATION
-// Say if a room is new or renovated
+//say if a room is new or renovated
 const isRoomRenovated = (state) => state === 'new' || state === 'new/renovated';
 
 //______________________________________________________
 // ROOM BADGE COMPONENT
-// Show a small pill with the room name and its condition
+//show a small pill with the room name and its condition
 const RoomBadge = ({ roomType, condition }) => (
     <Badge
         // Use a bolder style for good condition, a softer style for needs work
@@ -81,7 +81,7 @@ const RoomBadge = ({ roomType, condition }) => (
 
 //______________________________________________________
 // PROPERTY PREVIEW CARD
-// Show a picture, the price, the main details, quick features, and room states
+//show a picture, the price, the main details, quick features, and room states
 const PropertyPreviewCard = ({
                                  property,               // the property data
                                  className = '',         // extra classes so the parent can style the card

@@ -7,9 +7,10 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import InfoCells from './InfoCells';
 import useLikes from '../hooks/useLikes';
 import { Heart } from 'lucide-react';
+import RefurbCostEstimateCard from "@/components/RefurbCostEstimateCard.jsx";
 
 //______________________________________________________
-// PROPERTY DIALOG COMPONENT
+// PROPERTY DIALOG COMPONENT  
 // Shows a popup with property details, images, and cost info
 const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
     const isMobile = useIsMobile();
@@ -21,6 +22,10 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const dialogRef = useRef(null);
     const [expandedSquare, setExpandedSquare] = useState(null);
+
+    // ADD THESE NEW STATE VARIABLES FOR TRACKING REFURB COSTS
+    const [currentKitchenCost, setCurrentKitchenCost] = useState(0);
+    const [currentBathroomCost, setCurrentBathroomCost] = useState(0);
 
     //______________________________________________________
     // CLICK HANDLER
@@ -430,18 +435,32 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
 
                             {kitchenCostEstimate && (
                                 <div className="bg-white border border-gray-200 rounded-xl p-1">
-                                    <CostEstimateCard estimate={kitchenCostEstimate} roomType="kitchen" />
+                                    <CostEstimateCard 
+                                        estimate={kitchenCostEstimate} 
+                                        roomType="kitchen"
+                                        onCostChange={setCurrentKitchenCost}  // ADD THIS LINE
+                                    />
                                 </div>
                             )}
 
                             {bathroomCostEstimate && (
                                 <div className="bg-white border border-gray-200 rounded-xl p-1">
-                                    <CostEstimateCard estimate={bathroomCostEstimate} roomType="bathroom" />
+                                    <CostEstimateCard 
+                                        estimate={bathroomCostEstimate} 
+                                        roomType="bathroom"
+                                        onCostChange={setCurrentBathroomCost}  // ADD THIS LINE
+                                    />
                                 </div>
                             )}
 
                             <div className="bg-white border border-gray-200 rounded-xl p-1">
-                                <CostScenarioCard property={property} />
+                                <CostScenarioCard
+                                    property={property}
+                                    kitchenDIYMode={true}               // CHANGE TO TRUE
+                                    bathroomDIYMode={true}              // CHANGE TO TRUE  
+                                    kitchenDIYCost={currentKitchenCost}  // ADD THIS LINE
+                                    bathroomDIYCost={currentBathroomCost} // ADD THIS LINE
+                                />
                             </div>
                         </div>
                     </div>
@@ -642,16 +661,30 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                     <InfoCells property={property} />
                                 </div>
                                 <div className="w-full h-full row-span-2">
-                                    <CostScenarioCard property={property} />
+                                    <CostScenarioCard
+                                        property={property}
+                                        kitchenDIYMode={true}               // CHANGE TO TRUE
+                                        bathroomDIYMode={true}              // CHANGE TO TRUE  
+                                        kitchenDIYCost={currentKitchenCost}  // ADD THIS LINE
+                                        bathroomDIYCost={currentBathroomCost} // ADD THIS LINE
+                                    />
                                 </div>
                             </div>
 
                             <div className={`w-full h-full ${expandedSquare ? 'hidden' : ''}`}>
-                                <CostEstimateCard estimate={kitchenCostEstimate} roomType="kitchen" />
+                                <RefurbCostEstimateCard
+                                    estimate={kitchenCostEstimate} 
+                                    roomType="kitchen"
+                                    onCostChange={setCurrentKitchenCost}  // ADD THIS LINE
+                                />
                             </div>
 
                             <div className={`w-full h-full ${expandedSquare ? 'hidden' : ''}`}>
-                                <CostEstimateCard estimate={bathroomCostEstimate} roomType="bathroom" />
+                                <RefurbCostEstimateCard
+                                    estimate={bathroomCostEstimate} 
+                                    roomType="bathroom"
+                                    onCostChange={setCurrentBathroomCost}  // ADD THIS LINE
+                                />
                             </div>
                         </div>
                     </div>

@@ -1,3 +1,5 @@
+# Property filing cabinet. Saves and finds listings in the cloud database.
+
 import os
 from typing import List, Optional, Dict, Any
 from firebase_admin import credentials, initialize_app, firestore

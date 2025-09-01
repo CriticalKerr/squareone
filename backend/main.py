@@ -1,3 +1,4 @@
+#A simple starter file that boots up the server
 
 import uvicorn
 from app.main import app

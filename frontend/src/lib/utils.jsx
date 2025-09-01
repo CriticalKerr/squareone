@@ -1,3 +1,5 @@
+//Helper functions that make CSS styling work better (combines different style rules)
+
 import { clsx } from "clsx" // Combine class name strings conditionally
 import { twMerge } from "tailwind-merge" // Merge Tailwind CSS classes without duplicates
 

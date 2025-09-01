@@ -1,3 +1,5 @@
+# The 'eyes' of the prototype, used to call OpenAI API
+
 import os                       #for environment variables and file paths
 import re                       #for extracting json from markdown fences
 import json                     #for parsing json responses
@@ -11,12 +13,9 @@ from dotenv import load_dotenv  #for loading .env variables
 from PIL import Image           #for image processing
 from openai import OpenAI, RateLimitError   #for handling rate limits errors when calling api
 
-#______ LOAD CONFIG AND API KEYS FROM .ENV
+#______ LOAD CONFIG AND API KEY FROM .ENV
 load_dotenv()  #load values from .env into environment
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))  #create openai client with api key
-BFL_API_HOST = os.getenv("BFL_API_HOST")        #read external api host if used elsewhere
-BFL_API_KEY = os.getenv("BFL_API_KEY")          #read external api key if used elsewhere
-STATIC_DIR = os.getenv("STATIC_DIR", "static")  #default folder where we save generated files
 
 #___________________________________________________________________________
 #______________________________ OPENAI VISION CALL _________________________
@@ -42,8 +41,8 @@ def _call_vision(prompt: str, image_url: str) -> dict:
         raise ValueError(f"Model returned non-JSON response: {json_str!r}")
     return json.loads(json_str) #parse and return dict
 
-#______ RETRY WRAPPER FOR VISION
-#tries the call a few times if we hit rate limits, waits longer each time
+    #______ RETRY WRAPPER FOR VISION
+    #tries the call a few times if we hit rate limits, waits longer each time
 def _call_vision_with_retry(prompt: str, image_url: str, max_retries: int = 5) -> dict:
     delay = 1.0                                        #start with 1s delay
     for attempt in range(1, max_retries + 1):          #loop attempts
@@ -143,20 +142,6 @@ def generate_refurb_edit(image_url: str, room_type: str, refurb_type: str = "bas
             f"Declutter and add any missing fixtures and elements. "
             f"Photorealistic, detailed, and high-quality."
         ),
-        "mid": (
-            f"Modern-style, high-end refurb of this {room_type}. "
-            f"Use neutral tone, matte-finish, handleless cabinets if applicable. "
-            f"Preserve the exact layout and camera angle. "
-            f"Declutter and add any missing fixtures and elements. "
-            f"Photorealistic, detailed, and high-quality."
-        ),
-        "premium": (
-            f"Luxury-style, premium refurb of this {room_type}. "
-            f"Use neutral tone, matte-finish, handleless cabinets if applicable. "
-            f"Preserve the exact layout and camera angle. "
-            f"Declutter and add any missing fixtures and elements. "
-            f"Photorealistic, detailed, and high-quality."
-        )
     }
 
     #step 1:pick the prompt for the chosen refurb type

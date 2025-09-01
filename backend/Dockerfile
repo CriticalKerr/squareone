@@ -1,16 +1,18 @@
+#Instructions for putting the app in a "container" so it can run anywhere on the internet
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements and install dependencies
+#copy all requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your app
+#copy my app
 COPY . .
 
-# Expose port (Cloud Run will set the PORT environment variable)
+#expose port (Cloud Run sets the PORT environment variable)
 EXPOSE 8080
 
-# Run the FastAPI app
+#run FAST API
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

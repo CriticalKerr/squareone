@@ -1,3 +1,5 @@
+//Creates info boxes that show house details (bedrooms, price, etc.) and lets people "love" properties
+
 import React from 'react';
 import { useLikesContext } from '../contexts/LikesContext';
 import { useIsMobile } from '../hooks/useIsMobile';

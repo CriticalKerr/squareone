@@ -1,8 +1,16 @@
+//Manages which property a user hearted by saving them in their browser,
+//updating the UI instantly when a user clicks hearts,
+//and tries to sync with the server in the background even if it's offline.
 
 import { useState, useCallback } from 'react';
 
+//______________________________________________________
+// USE LIKES HOOK
+//handles local likes state, animations, and server sync
 const useLikes = () => {
-    // Load likes from localStorage on initialization
+    //______________________________________________________
+    // LOCAL STORAGE STATE
+    //load liked property IDs from browser storage (or [] if none)
     const [likedProperties, setLikedProperties] = useState(() => {
         try {
             const saved = localStorage.getItem('likedProperties');
@@ -13,8 +21,12 @@ const useLikes = () => {
         }
     });
 
-    const [isAnimating, setIsAnimating] = useState({}); // Track animation state per property
+    //tracks if heart animation is running for a given property
+    const [isAnimating, setIsAnimating] = useState({});
 
+    //______________________________________________________
+    // TOGGLE LIKE
+    //flip heart on/off for one property and try to sync with backend
     const toggleLike = useCallback(async (propertyId) => {
         if (!propertyId) {
             console.warn('No propertyId provided to toggleLike');
@@ -23,10 +35,10 @@ const useLikes = () => {
 
         const isCurrentlyLiked = likedProperties.includes(propertyId);
 
-        // Start animation immediately for instant feedback
+        //start animation immediately for fast feedback
         setIsAnimating(prev => ({ ...prev, [propertyId]: true }));
 
-        // Update UI immediately
+        //optimistically update local UI + storage
         const newLiked = isCurrentlyLiked
             ? likedProperties.filter(id => id !== propertyId)
             : [...likedProperties, propertyId];
@@ -35,31 +47,26 @@ const useLikes = () => {
         localStorage.setItem('likedProperties', JSON.stringify(newLiked));
 
         try {
-            // Call your FastAPI backend - but don't let it break the UI if it fails
+            //call backend API but don’t block UI if it fails
             const response = await fetch(`/api/properties/${propertyId}/like`, {
                 method: isCurrentlyLiked ? 'DELETE' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            // Stop animation after a delay
+            //stop animation after 600ms
             setTimeout(() => {
                 setIsAnimating(prev => ({ ...prev, [propertyId]: false }));
             }, 600);
 
             return { success: true, isLiked: !isCurrentlyLiked };
         } catch (error) {
-            console.warn('API call failed, but continuing with local update:', error);
+            console.warn('API call failed, continuing with local update:', error);
 
-            // Don't revert the local change - just continue without server sync
-            // This way the UI still works even if the backend is down
-
-            // Stop animation after a delay
+            //don’t roll back local changes; UI keeps working offline
             setTimeout(() => {
                 setIsAnimating(prev => ({ ...prev, [propertyId]: false }));
             }, 600);
@@ -68,21 +75,27 @@ const useLikes = () => {
         }
     }, [likedProperties]);
 
+    //______________________________________________________
+    // IS LIKED
+    //check if one property is liked
     const isLiked = useCallback((propertyId) => {
         if (!propertyId) return false;
         return likedProperties.includes(propertyId);
     }, [likedProperties]);
 
+    //______________________________________________________
+    // GET IS ANIMATING
+    //check if heart animation is running for one property
     const getIsAnimating = useCallback((propertyId) => {
         if (!propertyId) return false;
         return isAnimating[propertyId] || false;
     }, [isAnimating]);
 
     return {
-        likedProperties,
-        toggleLike,
-        isLiked,
-        getIsAnimating
+        likedProperties, //array of liked property IDs
+        toggleLike,      //function to toggle like
+        isLiked,         //check if property is liked
+        getIsAnimating   //check if property heart is animating
     };
 };
 

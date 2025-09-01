@@ -1,4 +1,5 @@
-// PropertyListView.jsx
+//Shows a list grid of property cards you can scroll through
+
 import React from 'react';
 import PropertyPreviewCard from './PropertyPreviewCard';
 import { useIsMobile } from '../hooks/useIsMobile';

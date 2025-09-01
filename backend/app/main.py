@@ -1,3 +1,5 @@
+#The main server that handles all listing requests
+
 import os                                                     #for file paths and project directories
 from fastapi import FastAPI, Query, HTTPException             #for api app, query params, and http errors
 from fastapi.middleware.cors import CORSMiddleware            #for allowing browser apps to call this api

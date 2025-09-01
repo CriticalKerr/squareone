@@ -277,7 +277,7 @@
 }
 
 /*______________________________________________________*/
-/* MOBILE OPTIMIZATIONS */
+/* MOBILE OPTIMISATIONS */
 /* Safe area support for mobile devices */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);

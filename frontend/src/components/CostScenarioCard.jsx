@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calculator, PoundSterling } from 'lucide-react';
+import {Calculator, PoundSterling, ToolCaseIcon} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -92,7 +93,7 @@ const LabeledNumberInput = ({
 //______________________________________________________
 // TOGGLE REFURB ROW
 //a row with a toggle button for including a refurb and a small cost hint
-const ToggleRefurbRow = ({ name, enabled, onToggle, costEstimate, shouldHighlight = false }) => (
+const ToggleRefurbRow = ({ name, enabled, onToggle, shouldHighlight = false, isDIYMode = false, valueUpliftPercent }) => (
     <div className={`grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] ${shouldHighlight && !enabled ? 'animate-gentle-shake-continuous' : ''}`}>
         <div className="flex items-center gap-2">
             <Button
@@ -101,14 +102,15 @@ const ToggleRefurbRow = ({ name, enabled, onToggle, costEstimate, shouldHighligh
                 onClick={onToggle} //flip enabled on click
                 className="h-6 px-2 text-xs"
             >
-                {enabled ? '✓' : '○'} {name}
+                {enabled ? '✓' : '○'} {isDIYMode ? ` ${name}` : `${name}`}
             </Button>
-            {typeof costEstimate === 'number' && (
-                <span className="text-slate-500">{formatCurrency(costEstimate)}</span>
+            {enabled && valueUpliftPercent && (
+                <span className="text-green-600 font-medium">+{valueUpliftPercent}%</span>
             )}
         </div>
     </div>
 );
+
 
 //______________________________________________________
 // SUMMARY ROW
@@ -123,7 +125,13 @@ const SummaryRow = ({ label, value, valueClassName }) => (
 //______________________________________________________
 // COST SCENARIO CARD
 //lets you enter prices, toggle refurbs, and see profit and roi
-const CostScenarioCard = ({ property }) => {
+const CostScenarioCard = ({
+                              property,
+                              kitchenDIYMode = false,
+                              bathroomDIYMode = false,
+                              kitchenDIYCost,
+                              bathroomDIYCost
+                          }) => {
     //______________________________________________________
     // STATE
     //numbers start at 0, toggles start off
@@ -133,6 +141,8 @@ const CostScenarioCard = ({ property }) => {
     const [includeKitchenRefurb, setIncludeKitchenRefurb] = useState(false);
     const [includeBathroomRefurb, setIncludeBathroomRefurb] = useState(false);
     const [shouldHighlightFields, setShouldHighlightFields] = useState(false);
+    const [soldOverReportPercent, setSoldOverReportPercent] = useState(0);
+
 
     //turn on highlight shortly after load or when property changes
     useEffect(() => {
@@ -160,13 +170,17 @@ const CostScenarioCard = ({ property }) => {
     const kitchenState = kitchenAnalysis?.state || 'unknown';
 
     //______________________________________________________
-    // TOTAL REFURB COSTS
+    // TOTAL REFURB COSTS - Updated to use DIY costs when available
     //add selected refurb totals together based on toggles
     const totalRefurbCosts = useMemo(() => {
-        const bathCost = includeBathroomRefurb && bathroomCostEstimate?.total_cost ? bathroomCostEstimate.total_cost : 0;
-        const kitCost = includeKitchenRefurb && kitchenCostEstimate?.total_cost ? kitchenCostEstimate.total_cost : 0;
+        const bathCost = includeBathroomRefurb ? (
+            bathroomDIYMode && bathroomDIYCost !== undefined ? bathroomDIYCost : (bathroomCostEstimate?.total_cost || 0)
+        ) : 0;
+        const kitCost = includeKitchenRefurb ? (
+            kitchenDIYMode && kitchenDIYCost !== undefined ? kitchenDIYCost : (kitchenCostEstimate?.total_cost || 0)
+        ) : 0;
         return bathCost + kitCost;
-    }, [bathroomCostEstimate, kitchenCostEstimate, includeBathroomRefurb, includeKitchenRefurb]);
+    }, [bathroomCostEstimate, kitchenCostEstimate, includeBathroomRefurb, includeKitchenRefurb, bathroomDIYMode, kitchenDIYMode, bathroomDIYCost, kitchenDIYCost]);
 
     const totalInvestment = purchasePrice + totalRefurbCosts; //money going in
 
@@ -183,19 +197,30 @@ const CostScenarioCard = ({ property }) => {
     }, [kitchenEligible, bathroomEligible]);
 
     const addedValue = useMemo(() => homeReportValue * addedValuePercent, [homeReportValue, addedValuePercent]); //extra money after refurb
-    const expectedBaseValue = useMemo(() => homeReportValue + addedValue, [homeReportValue, addedValue]); //new value before market tweak
-    const finalExpectedValue = useMemo(
-        () => expectedBaseValue * (1 + (expectedAdjPercent || 0) / 100), //apply market % up or down
-        [expectedBaseValue, expectedAdjPercent]
-    );
 
-    const profit = finalExpectedValue - totalInvestment; //how much you make after selling
+    // NEW CALCULATION FLOW
+    const marketAdjustedHomeReport = useMemo(() => {
+        // Apply market adjustment to original home report value
+        return homeReportValue * (1 + (expectedAdjPercent || 0) / 100);
+    }, [homeReportValue, expectedAdjPercent]);
+
+    const adjustedHomeReportWithRefurbs = useMemo(() => {
+        // Add refurb value to the market-adjusted home report
+        return marketAdjustedHomeReport + addedValue;
+    }, [marketAdjustedHomeReport, addedValue]);
+
+    const finalSalePrice = useMemo(() => {
+        // Apply "sold over report" to the adjusted home report value
+        return adjustedHomeReportWithRefurbs * (1 + (soldOverReportPercent || 0) / 100);
+    }, [adjustedHomeReportWithRefurbs, soldOverReportPercent]);
+
+    const profit = finalSalePrice - totalInvestment; //how much you make after selling
 
     //return on investment in percent
     const roi = useMemo(() => {
         if (totalInvestment === 0) return 0;
-        return ((finalExpectedValue - totalInvestment) / totalInvestment) * 100;
-    }, [finalExpectedValue, totalInvestment]);
+        return ((finalSalePrice - totalInvestment) / totalInvestment) * 100;
+    }, [finalSalePrice, totalInvestment]);
 
     //______________________________________________________
     // PURCHASE DIFFERENCE
@@ -207,144 +232,145 @@ const CostScenarioCard = ({ property }) => {
     //______________________________________________________
     // UPLIFT DESCRIPTION
     //short text like "Kitchen +10%, Bathroom +5%" or "None"
-    const upliftDescription = useMemo(() => {
+    useMemo(() => {
         const parts = [];
         if (kitchenEligible) parts.push('Kitchen +10%');
         if (bathroomEligible) parts.push('Bathroom +5%');
         return parts.length > 0 ? parts.join(', ') : 'None';
     }, [kitchenEligible, bathroomEligible]);
 
-    //______________________________________________________
-    // NO PROPERTY DATA
-    if (!property) {
-        return (
-            <div className="h-full bg-slate-50 p-3 rounded-lg flex flex-col items-center justify-center">
-                <Calculator className="w-8 h-8 text-slate-400 mb-2" />
-                <p className="text-sm text-slate-500 font-medium text-center">
-                    No property data
-                </p>
-            </div>
-        );
-    }
 
-    //______________________________________________________
-    // JSX
-    //build the card ui with inputs, toggles, and results
+
+
+//______________________________________________________
+    // RENDER
     return (
-        <div className="h-full bg-slate-50 p-3 rounded-lg flex flex-col text-xs">
-
+        <div className="bg-slate-50 p-3 rounded-lg h-full flex flex-col">
             {/*______________________________________________________*/}
             {/* HEADER */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-1 mb-3">
                 <Calculator className="w-4 h-4 text-slate-600" />
-                <h5 className="font-semibold text-slate-900 text-sm">ROI Scenario</h5>
+                <h5 className="font-semibold text-slate-900 text-sm">Cost Scenario</h5>
             </div>
 
-            {/*______________________________________________________*/}
-            {/* INPUTS & TOGGLES WRAPPER */}
-            <div className="flex-1 flex flex-col gap-3 min-h-0">
-
-                {/*______________________________________________________*/}
-                {/* PRICE INPUTS */}
+            {/* INPUTS */}
+            <div className="mb-2">
                 <div className="grid grid-cols-2 gap-2">
                     <LabeledNumberInput
                         label="Home Report Value"
                         prefixIcon={PoundSterling}
                         value={homeReportValue}
                         onChange={setHomeReportValue}
+                        placeholder="0"
                         shouldHighlight={shouldHighlightFields}
                         animationType="gentle-shake-continuous"
                     />
-                    <div>
-                        <LabeledNumberInput
-                            label="Purchase Price"
-                            prefixIcon={PoundSterling}
-                            value={purchasePrice}
-                            onChange={setPurchasePrice}
-                            shouldHighlight={shouldHighlightFields}
-                            animationType="gentle-shake-continuous"
-                        />
-                        {homeReportValue > 0 && (
-                            <div className="mt-1">
-                                {isPremium ? (
-                                    <div className="text-red-600 text-[10px]">
-                                        {percentDisplay(purchaseDiffPct)} Over Home Report
-                                    </div>
-                                ) : (
-                                    <div className="text-green-600 text-[10px]">
-                                        {percentDisplay(-purchaseDiffPct)} Under Home Report
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                    <LabeledNumberInput
+                        label="Purchase Price"
+                        prefixIcon={PoundSterling}
+                        value={purchasePrice}
+                        onChange={setPurchasePrice}
+                        placeholder="0"
+                        shouldHighlight={shouldHighlightFields}
+                        animationType="gentle-shake-continuous"
+                    />
+                    <LabeledNumberInput
+                        label="Market Adjustment"
+                        value={expectedAdjPercent}
+                        onChange={setExpectedAdjPercent}
+                        suffix="%"
+                        placeholder="0"
+                        shouldHighlight={shouldHighlightFields}
+                        animationType="gentle-shake-continuous"
+                    />
+                    <LabeledNumberInput
+                        label="Sold Over Home Report"
+                        value={soldOverReportPercent}
+                        onChange={setSoldOverReportPercent}
+                        suffix="%"
+                        placeholder="0"
+                        shouldHighlight={shouldHighlightFields}
+                        animationType="gentle-shake-continuous"
+                    />
                 </div>
+            </div>
 
+
+            <div className="flex items-center gap-1 mb-2">
+                <h5 className="font-semibold text-slate-900 text-xs">Include Refurbishments:</h5>
+            </div>
+
+            {/*______________________________________________________*/}
+            {/* REFURB TOGGLES */}
+            <div className="mb-3">
+                <div className="grid grid-cols-1 gap-2">
+                    <ToggleRefurbRow
+                        name="Kitchen Refurb"
+                        enabled={includeKitchenRefurb}
+                        onToggle={() => setIncludeKitchenRefurb(!includeKitchenRefurb)}
+                        costEstimate={kitchenDIYMode && kitchenDIYCost !== undefined ? kitchenDIYCost : kitchenCostEstimate?.total_cost}
+                        shouldHighlight={shouldHighlightFields}
+                        isDIYMode={kitchenDIYMode}
+                        valueUpliftPercent={10}
+                    />
+                    <ToggleRefurbRow
+                        name="Bathroom Refurb"
+                        enabled={includeBathroomRefurb}
+                        onToggle={() => setIncludeBathroomRefurb(!includeBathroomRefurb)}
+                        costEstimate={bathroomDIYMode && bathroomDIYCost !== undefined ? bathroomDIYCost : bathroomCostEstimate?.total_cost}
+                        shouldHighlight={shouldHighlightFields}
+                        isDIYMode={bathroomDIYMode}
+                        valueUpliftPercent={5}
+                    />
+                </div>
+            </div>
+
+            {/*______________________________________________________*/}
+            {/* SUMMARY */}
+            <div className="mt-auto space-y-1">
                 {/*______________________________________________________*/}
-                {/* REFURB TOGGLES */}
-                {(kitchenCostEstimate || bathroomCostEstimate) && (
-                    <div className="bg-white">
-                        <div className="font-bold mb-1">Include Refurb</div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {kitchenCostEstimate && (
-                                <ToggleRefurbRow
-                                    name="Kitchen"
-                                    enabled={includeKitchenRefurb}
-                                    onToggle={() => setIncludeKitchenRefurb((v) => !v)}
-                                    costEstimate={kitchenCostEstimate?.total_cost}
-                                    shouldHighlight={shouldHighlightFields}
-                                />
-                            )}
-                            {bathroomCostEstimate && (
-                                <ToggleRefurbRow
-                                    name="Bathroom"
-                                    enabled={includeBathroomRefurb}
-                                    onToggle={() => setIncludeBathroomRefurb((v) => !v)}
-                                    costEstimate={bathroomCostEstimate?.total_cost}
-                                    shouldHighlight={shouldHighlightFields}
-                                />
-                            )}
+                {/* ADDED VALUE FROM REFURBS */}
+                {(kitchenEligible || bathroomEligible) && homeReportValue > 0 && (
+                    <div className="mb-1 p-2 rounded text-[12px] border">
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-600">Est. Value Added:</span>
+                            <div className="flex items-center gap-1">
+                                <span className="font-medium text-green-700">
+                                    {formatCurrency(addedValue)}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {/*______________________________________________________*/}
-                {/* ADDED VALUE & MARKET ADJUSTMENT */}
-                <div className="grid grid-cols-1 gap-2">
-                    <div className="bg-white p-2 rounded">
-                        <div className="flex justify-between">
-                            <div className="font-bold">Est. Value Added</div>
-                            <div className="font-bold">{formatCurrency(addedValue)}</div>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                            Uplift: {upliftDescription} ({percentDisplay(addedValuePercent * 100)})
+                {/* PURCHASE DIFFERENCE */}
+                {homeReportValue > 0 && purchasePrice > 0 && (
+                    <div className="mb-1 p-2 rounded text-[12px] border">
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-600">Purchase vs Report:</span>
+                            <div className="flex items-center gap-1">
+                <span className={`font-medium ${isPremium ? 'text-red-800' : 'text-green-800'}`}>
+                    {formatCurrency(Math.abs(purchaseDiff))} {isPremium ? 'over' : 'under'}
+                </span>
+                                <span className={`text-xs ${isPremium ? 'text-red-800' : 'text-green-800'}`}>
+                    ({percentDisplay(purchaseDiffPct)})
+                </span>
+                            </div>
                         </div>
                     </div>
-                    <div className="bg-white p-2 rounded">
-                        <LabeledNumberInput
-                            label="If Sold Over Home Report Value by:"
-                            value={expectedAdjPercent}
-                            onChange={setExpectedAdjPercent}
-                            suffix="%"
-                            shouldHighlight={shouldHighlightFields}
-                            animationType="gentle-shake-continuous"
-                        />
-                    </div>
-                </div>
+                )}
 
-                {/*______________________________________________________*/}
-                {/* SUMMARY NUMBERS */}
-                <div className="bg-white p-2 rounded space-y-1">
+                <div className="border-t pt-2">
                     <SummaryRow label="Total Investment" value={formatCurrency(totalInvestment)} />
-                    <SummaryRow label="Home Report Value" value={formatCurrency(expectedBaseValue)} />
-                    <SummaryRow label="Sale Price" value={formatCurrency(finalExpectedValue)} />
+                    <SummaryRow label="Home Report Value" value={formatCurrency(adjustedHomeReportWithRefurbs)} />
+                    <SummaryRow label="Sale Price" value={formatCurrency(finalSalePrice)} />
                     <SummaryRow label="Profit" value={formatCurrency(profit)} valueClassName={profit >= 0 ? 'text-green-700' : 'text-red-700'}/>
                 </div>
             </div>
-
             {/* NOTE */}
-            <div className="mt-2 text-xxs text-slate-600 text-justify">
-                (Note: Calculations exclude additional purchase costs such as legal fees,
+            <div className="mt-2 text-[10px] text-slate-600 text-justify">
+                (Note: Calculations exclude additional costs such as legal fees,
                 stamp duty, surveys, and agency charges. The uplift is fixed at 5–10%,
                 though actual values vary by property.)
             </div>
@@ -362,10 +388,9 @@ const CostScenarioCard = ({ property }) => {
                     {roi.toFixed(1)}% ROI
                 </div>
             </div>
+
         </div>
     );
 };
 
 export default CostScenarioCard;
-
-

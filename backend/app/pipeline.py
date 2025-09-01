@@ -1,3 +1,5 @@
+# Pipeline which calls vision.py to analyse images, estimate costs or generate refurbishment renders
+
 #______________________________________________________________________________________
 # IMPORTS
 #tools for env vars, async work, timing, logging, typing, database, and vision helpers
