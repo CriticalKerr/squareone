@@ -105,7 +105,7 @@ pip install -r requirements.txt
 
 ls firebase-service-account.json # check service account file exists
 
-python starter.py # or uvicorn app.main:app –reload
+uvicorn app.main:app –reload  # START FAST API
 
 # Frontend Setup
 
@@ -133,8 +133,8 @@ Health: http://127.0.0.1:8000/
 
 Listings: http://127.0.0.1:8000/listings
 
-Analyse a single Listing: curl -X POST “http://localhost:8000/analyze-listing/{listing_id}”
+Analyse a single Listing: curl -X POST “http://localhost:8000/analyze-listing/{listing_id}” # Example: curl -X POST "http://localhost:8000/analyze-listing/LzaHtHs6wFsr8BOwQeww"
 
 Analyse All Listings: curl -X POST “http://localhost:8000/analyze-all-listings”
 
-Pipeline saves any generated images in frontend/public/images/refurb/budget/
+Pipeline saves generated refurb images to Firebase Storage and returns public URLs

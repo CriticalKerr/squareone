@@ -12,6 +12,8 @@ from io import BytesIO          #for image byte handling
 from dotenv import load_dotenv  #for loading .env variables
 from PIL import Image           #for image processing
 from openai import OpenAI, RateLimitError   #for handling rate limits errors when calling api
+from firebase_admin import storage  #firebase storage function
+
 
 #______ LOAD CONFIG AND API KEY FROM .ENV
 load_dotenv()  #load values from .env into environment
@@ -193,17 +195,18 @@ def generate_refurb_edit(image_url: str, room_type: str, refurb_type: str = "bas
     image_bytes = base64.b64decode(image_base64)
     img = Image.open(BytesIO(image_bytes)).convert("RGB")
 
-    #step 5: save the image under frontend/public/images/refurb/<type>/<uuid>.png
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # Go up to project root
-    refurb_base_dir = os.path.join(BASE_DIR, "frontend", "public", "images", "refurb")     # Point to frontend/public
-    refurb_type_dir = os.path.join(refurb_base_dir, refurb_type.lower())    #subfolder per style
-    os.makedirs(refurb_type_dir, exist_ok=True)                             #make folders if missing
-    filename = f"{uuid.uuid4().hex}_{refurb_type}.png"                      #unique file name
-    out_path = os.path.join(refurb_type_dir, filename)                      #full path
-    img.save(out_path, format="PNG")
+    # Instead of saving locally, upload to Firebase Storage
+    filename = f"{uuid.uuid4().hex}_{refurb_type}.png"
+    blob_path = f"images/refurb/{refurb_type.lower()}/{filename}"
 
-    return f"/static/images/refurb/{refurb_type.lower()}/{filename}"               #return url path              #return url path
+    # Upload to Firebase Storage
+    bucket = storage.bucket('squareone-47b22.firebasestorage.app')
+    blob = bucket.blob(blob_path)
+    blob.upload_from_string(image_bytes, content_type='image/png')
+    blob.make_public()
 
+    # Return the Firebase Storage URL
+    return blob.public_url
 #______________________________________________________________________________________
 #______________________________ COST ESTIMATE GENERATION _______________________________
 #refurb_cost_estimate:compares original vs refurb images and returns a cost breakdown json
@@ -278,9 +281,10 @@ def refurb_cost_estimate(
     resp.raise_for_status()
     original_content = resp.content
 
-    #read refurb image bytes from local path
-    with open(refurb_image_url, 'rb') as f:
-        refurb_content = f.read()
+    # Download refurb image from Firebase Storage URL
+    refurb_resp = requests.get(refurb_image_url)
+    refurb_resp.raise_for_status()
+    refurb_content = refurb_resp.content
 
     #encode both images to base64 data urls for the api
     original_b64 = base64.b64encode(original_content).decode('utf-8')
@@ -362,4 +366,5 @@ def refurb_cost_estimate(
         return revised
 
     return result
+
 

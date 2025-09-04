@@ -161,8 +161,8 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                             src={expandedSquare === 1
                                 ? allCarouselImages[currentImageIndex]
                                 : expandedSquare === 2
-                                    ? `/images/refurb/budget/${kitchenRefurbRender?.split('/').pop()}`
-                                    : `/images/refurb/budget/${bathroomRefurbRender?.split('/').pop()}`
+                                    ? kitchenRefurbRender
+                                    : bathroomRefurbRender
                             }
                             className="max-w-full max-h-full object-contain"
                             alt={expandedSquare === 1
@@ -250,7 +250,7 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                             {isCurrentImageFloorplan ? 'Floor Plan' : 'Property'}
                         </div>
 
-                        {/* Price Badge - CHANGED TO BLACK */}
+                        {/* Price Badge */}
                         <div className="absolute top-3 right-3 bg-black text-white px-3 py-1.5 rounded-lg text-sm font-bold">
                             {property.price}
                         </div>
@@ -391,7 +391,7 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                     >
                                         <div className="relative h-48">
                                             <img
-                                                src={`/images/refurb/budget/${kitchenRefurbRender.split('/').pop()}`}
+                                                src={kitchenRefurbRender}
                                                 alt="Kitchen refurbishment"
                                                 className="w-full h-full object-cover"
                                             />
@@ -413,7 +413,7 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                     >
                                         <div className="relative h-48">
                                             <img
-                                                src={`/images/refurb/budget/${bathroomRefurbRender.split('/').pop()}`}
+                                                src={bathroomRefurbRender}
                                                 alt="Bathroom refurbishment"
                                                 className="w-full h-full object-cover"
                                             />
@@ -435,8 +435,8 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
 
                             {kitchenCostEstimate && (
                                 <div className="bg-white border border-gray-200 rounded-xl p-1">
-                                    <CostEstimateCard 
-                                        estimate={kitchenCostEstimate} 
+                                    <CostEstimateCard
+                                        estimate={kitchenCostEstimate}
                                         roomType="kitchen"
                                         onCostChange={setCurrentKitchenCost}  // ADD THIS LINE
                                     />
@@ -445,8 +445,8 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
 
                             {bathroomCostEstimate && (
                                 <div className="bg-white border border-gray-200 rounded-xl p-1">
-                                    <CostEstimateCard 
-                                        estimate={bathroomCostEstimate} 
+                                    <CostEstimateCard
+                                        estimate={bathroomCostEstimate}
                                         roomType="bathroom"
                                         onCostChange={setCurrentBathroomCost}  // ADD THIS LINE
                                     />
@@ -457,7 +457,7 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                 <CostScenarioCard
                                     property={property}
                                     kitchenDIYMode={true}               // CHANGE TO TRUE
-                                    bathroomDIYMode={true}              // CHANGE TO TRUE  
+                                    bathroomDIYMode={true}              // CHANGE TO TRUE
                                     kitchenDIYCost={currentKitchenCost}  // ADD THIS LINE
                                     bathroomDIYCost={currentBathroomCost} // ADD THIS LINE
                                 />
@@ -621,7 +621,7 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                 </h4>
                                 {kitchenRefurbRender ? (
                                     <img
-                                        src={`/images/refurb/budget/${kitchenRefurbRender.split('/').pop()}`}
+                                        src={kitchenRefurbRender}
                                         alt="Kitchen refurb"
                                         className="w-full h-full object-cover"
                                     />
@@ -642,7 +642,7 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                 </h4>
                                 {bathroomRefurbRender ? (
                                     <img
-                                        src={`/images/refurb/budget/${bathroomRefurbRender.split('/').pop()}`}
+                                        src={bathroomRefurbRender}
                                         alt="Bathroom refurb"
                                         className="w-full h-full object-cover"
                                     />
@@ -663,27 +663,27 @@ const PropertyDialog = ({ property, isOpen, triggerPosition, onClose }) => {
                                 <div className="w-full h-full row-span-2">
                                     <CostScenarioCard
                                         property={property}
-                                        kitchenDIYMode={true}               // CHANGE TO TRUE
-                                        bathroomDIYMode={true}              // CHANGE TO TRUE  
-                                        kitchenDIYCost={currentKitchenCost}  // ADD THIS LINE
-                                        bathroomDIYCost={currentBathroomCost} // ADD THIS LINE
+                                        kitchenDIYMode={true}
+                                        bathroomDIYMode={true}
+                                        kitchenDIYCost={currentKitchenCost}
+                                        bathroomDIYCost={currentBathroomCost}
                                     />
                                 </div>
                             </div>
 
                             <div className={`w-full h-full ${expandedSquare ? 'hidden' : ''}`}>
                                 <RefurbCostEstimateCard
-                                    estimate={kitchenCostEstimate} 
+                                    estimate={kitchenCostEstimate}
                                     roomType="kitchen"
-                                    onCostChange={setCurrentKitchenCost}  // ADD THIS LINE
+                                    onCostChange={setCurrentKitchenCost}
                                 />
                             </div>
 
                             <div className={`w-full h-full ${expandedSquare ? 'hidden' : ''}`}>
                                 <RefurbCostEstimateCard
-                                    estimate={bathroomCostEstimate} 
+                                    estimate={bathroomCostEstimate}
                                     roomType="bathroom"
-                                    onCostChange={setCurrentBathroomCost}  // ADD THIS LINE
+                                    onCostChange={setCurrentBathroomCost}
                                 />
                             </div>
                         </div>

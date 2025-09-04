@@ -10,6 +10,7 @@ import logging
 from typing import Optional, Dict, Any, List    #type hint helpers
 from .db import init_db, get_all_listings, save_listing  #database functions
 from .vision import generate_refurb_edit, identify_room, classify_room_condition, analyse_floorplan, refurb_cost_estimate
+import firebase_admin
 
 #______________________________________________________________________________________
 # LOGGING TWEAKS
@@ -144,72 +145,64 @@ async def process_listing(listing: Dict[str, Any]) -> Dict[str, Any]:
                     entry["refurb_type"] = refurb_type
                     print(f"✅ [ID: {listing_id}] {refurb_type.title()} refurb render saved: {refurb_url}")
 
-                    #------build a real path to the saved refurb image
-                    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    refurb_file_path = os.path.join(BASE_DIR, refurb_url.lstrip('/'))
+                    #------choose the best room area to use for costing
+                    room_type = room["room_type"]
+                    room_area = None
 
-                    if not os.path.exists(refurb_file_path):
-                        print(f"⚠️ [ID: {listing_id}] Refurb file not found: {refurb_file_path}")
-                        entry["cost_estimate_error"] = "Refurb file not found"
+                    #track which index of this room type we are on
+                    room_type_counters[room_type] = room_type_counters.get(room_type, 0) + 1
+                    current_count = room_type_counters[room_type]
+
+                    #first instance uses plain key, later ones use indexed key
+                    if current_count == 1:
+                        room_area = room_areas.get(room_type)
                     else:
-                        #------choose the best room area to use for costing
-                        room_type = room["room_type"]
-                        room_area = None
+                        room_area = room_areas.get(f"{room_type}_{current_count}")
 
-                        #track which index of this room type we are on
-                        room_type_counters[room_type] = room_type_counters.get(room_type, 0) + 1
-                        current_count = room_type_counters[room_type]
+                    #fallback: if missing indexed value, try the base key
+                    if room_area is None and current_count > 1:
+                        room_area = room_areas.get(room_type)
 
-                        #first instance uses plain key, later ones use indexed key
-                        if current_count == 1:
-                            room_area = room_areas.get(room_type)
+                    print(f"💰 [ID: {listing_id}] Generating {refurb_type} cost estimate for {room_type} (Area: {room_area or 'estimated'} sqm)...")
+
+                    #------estimate cost using original image, refurb image URL (now Firebase Storage URL), room type, area, and style
+                    cost_estimate = await asyncio.to_thread(
+                        refurb_cost_estimate,
+                        room["image_url"],
+                        refurb_url,  # This is now a Firebase Storage URL, not a local file path
+                        room["room_type"],
+                        room_area,
+                        refurb_type  #pass the refurb style
+                    )
+
+                    #------store the estimate under a unique room key
+                    room_key = f"{room['room_type']}_{current_count}"
+                    cost_estimates[room_key] = cost_estimate
+                    entry["cost_estimate"] = cost_estimate
+
+                    total_cost = cost_estimate.get('total_cost', 0)
+                    area_info = f"({room_area} sqm)" if room_area else "(estimated size)"
+                    print(f"💰 [ID: {listing_id}] {refurb_type.title()} cost estimate complete: £{total_cost:,.2f} for {room_type} {area_info}")
+
+                    #------extra diagnostics to understand model behavior
+                    used_area = (
+                            cost_estimate.get("floorplan_area_sqm")
+                            or cost_estimate.get("estimated_area_sqm")
+                            or cost_estimate.get("used_area_sqm")
+                    )
+                    if used_area:
+                        print(f"   ↳ Used area for costing: {used_area} sqm")
+
+                    if cost_estimate.get("out_of_range"):
+                        rng = cost_estimate.get("range_hint", {})
+                        low = rng.get("low"); high = rng.get("high"); reason = rng.get("reason", "range check")
+                        if low and high:
+                            print(f"   ↳ Warning: total outside expected range £{low:.0f}–£{high:.0f} ({reason})")
                         else:
-                            room_area = room_areas.get(f"{room_type}_{current_count}")
+                            print("   ↳ Warning: total flagged as out of expected range")
 
-                        #fallback: if missing indexed value, try the base key
-                        if room_area is None and current_count > 1:
-                            room_area = room_areas.get(room_type)
-
-                        print(f"💰 [ID: {listing_id}] Generating {refurb_type} cost estimate for {room_type} (Area: {room_area or 'estimated'} sqm)...")
-
-                        #------estimate cost using original image, refurb image, room type, area, and style
-                        cost_estimate = await asyncio.to_thread(
-                            refurb_cost_estimate,
-                            room["image_url"],
-                            refurb_file_path,
-                            room["room_type"],
-                            room_area,
-                            refurb_type  #pass the refurb style
-                        )
-
-                        #------store the estimate under a unique room key
-                        room_key = f"{room['room_type']}_{current_count}"
-                        cost_estimates[room_key] = cost_estimate
-                        entry["cost_estimate"] = cost_estimate
-
-                        total_cost = cost_estimate.get('total_cost', 0)
-                        area_info = f"({room_area} sqm)" if room_area else "(estimated size)"
-                        print(f"💰 [ID: {listing_id}] {refurb_type.title()} cost estimate complete: £{total_cost:,.2f} for {room_type} {area_info}")
-
-                        #------extra diagnostics to understand model behavior
-                        used_area = (
-                                cost_estimate.get("floorplan_area_sqm")
-                                or cost_estimate.get("estimated_area_sqm")
-                                or cost_estimate.get("used_area_sqm")
-                        )
-                        if used_area:
-                            print(f"   ↳ Used area for costing: {used_area} sqm")
-
-                        if cost_estimate.get("out_of_range"):
-                            rng = cost_estimate.get("range_hint", {})
-                            low = rng.get("low"); high = rng.get("high"); reason = rng.get("reason", "range check")
-                            if low and high:
-                                print(f"   ↳ Warning: total outside expected range £{low:.0f}–£{high:.0f} ({reason})")
-                            else:
-                                print("   ↳ Warning: total flagged as out of expected range")
-
-                        if cost_estimate.get("reask_attempted"):
-                            print("   ↳ Model revised its estimate once due to range miss")
+                    if cost_estimate.get("reask_attempted"):
+                        print("   ↳ Model revised its estimate once due to range miss")
 
                 except Exception as e:
                     print(f"⚠️ [ID: {listing_id}] Error in refurb/cost process: {e}")
@@ -224,6 +217,7 @@ async def process_listing(listing: Dict[str, Any]) -> Dict[str, Any]:
 
     print(f"✅ [ID: {listing_id}] Processing complete - {len(analysis)} rooms analysed")
     return listing
+
 
 #______________________________________________________________________________________
 #______________________________ TESTING ANALYSIS FUNCTION ________________________
@@ -513,7 +507,7 @@ async def run_pipeline(limit: Optional[int] = None, include_testing: bool = Fals
     if include_testing:
         print("✅ Pipeline completed successfully")
 
-        #pull updated listings to analyze end results
+        #pull updated listings to analyse end results
         processed_listings = await get_all_listings()
 
         #timing metrics
@@ -521,7 +515,7 @@ async def run_pipeline(limit: Optional[int] = None, include_testing: bool = Fals
         print(f"⏱️  Total processing time: {total_time:.2f} seconds")
         print(f"📈 Average time per listing: {total_time/len(processed_listings):.2f} seconds")
 
-        #analyze results
+        #analyse results
         analyse_results(processed_listings)
 
         return {"testing_results": True, "total_time": total_time, "listings_processed": len(processed_listings)}

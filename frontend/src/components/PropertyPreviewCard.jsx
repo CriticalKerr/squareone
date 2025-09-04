@@ -193,3 +193,4 @@ export default PropertyPreviewCard;
 // eslint-disable-next-line react-refresh/only-export-components
 export { parseConditionAnalysis, formatPrice };
 
+
