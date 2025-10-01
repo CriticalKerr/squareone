@@ -54,3 +54,10 @@ next-env.d.ts
 
 # --- macOS dylibs in PIL (if you ever track them by mistake) ---
 site-packages/PIL/.dylibs/
+node_modules/
+.next/
+dist/
+build/
+__pycache__/
+*.sqlite
+*.db
