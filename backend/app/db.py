@@ -17,13 +17,18 @@ class FirestoreDB:
     def _initialize_firebase(self):
         """Initialize Firebase Admin SDK if not already initialized"""
         if not firebase_admin._apps:
-            cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', './firebase-service-account.json')
             project_id = os.getenv('FIREBASE_PROJECT_ID', 'squareone-47b22')
 
-            if not os.path.exists(cred_path):
-                raise Exception(f"Firebase credentials not found at {cred_path}")
+            # IMPORTANT:
+            # - On Cloud Run, do NOT use a JSON key file. Use ADC (service identity).
+            # - For local dev, you *may* set GOOGLE_APPLICATION_CREDENTIALS to a JSON file path.
+            cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')  # no default repo file
 
-            cred = credentials.Certificate(cred_path)
+            if cred_path and os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+            else:
+                cred = credentials.ApplicationDefault()
+
             initialize_app(cred, {'projectId': project_id})
 
         self._db = firestore.client()
@@ -35,8 +40,10 @@ class FirestoreDB:
             self._initialize_firebase()
         return self._db
 
+
 # Create a singleton instance
 firestore_db = FirestoreDB()
+
 
 #______________________________________________________
 # FIRESTORE DATABASE FUNCTIONS
