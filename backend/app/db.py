@@ -14,22 +14,48 @@ class FirestoreDB:
         self._db = None
         self._initialize_firebase()
 
+
+
+
+
+
     def _initialize_firebase(self):
         """Initialize Firebase Admin SDK if not already initialized"""
         if not firebase_admin._apps:
             project_id = os.getenv('FIREBASE_PROJECT_ID', 'squareone-47b22')
 
-            # IMPORTANT:
-            # - On Cloud Run, do NOT use a JSON key file. Use ADC (service identity).
-            # - For local dev, you *may* set GOOGLE_APPLICATION_CREDENTIALS to a JSON file path.
-            cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')  # no default repo file
+            # Get credentials path from environment
+            cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
-            if cred_path and os.path.exists(cred_path):
-                cred = credentials.Certificate(cred_path)
-            else:
-                cred = credentials.ApplicationDefault()
-
-            initialize_app(cred, {'projectId': project_id})
+            try:
+                # Check if credentials file exists and is readable
+                if cred_path and os.path.isfile(cred_path):
+                    # Use service account file for local development
+                    cred = credentials.Certificate(cred_path)
+                    initialize_app(cred, {'projectId': project_id})
+                    print(f"✅ Firebase initialized with service account: {cred_path}")
+                else:
+                    # Use Application Default Credentials (Cloud Run, local gcloud auth, etc.)
+                    cred = credentials.ApplicationDefault()
+                    initialize_app(cred, {'projectId': project_id})
+                    if cred_path:
+                        print(f"⚠️  Service account file not found: {cred_path}")
+                        print("🔄 Using Application Default Credentials instead")
+                    else:
+                        print("✅ Firebase initialized with Application Default Credentials")
+            except Exception as e:
+                # If service account fails, try ADC as fallback
+                if cred_path:
+                    print(f"❌ Failed to load service account from {cred_path}: {e}")
+                    print("🔄 Falling back to Application Default Credentials...")
+                    try:
+                        cred = credentials.ApplicationDefault()
+                        initialize_app(cred, {'projectId': project_id})
+                        print("✅ Firebase initialized with Application Default Credentials (fallback)")
+                    except Exception as adc_error:
+                        raise RuntimeError(f"Failed to initialize Firebase with both service account and ADC: {adc_error}")
+                else:
+                    raise RuntimeError(f"Failed to initialize Firebase with ADC: {e}")
 
         self._db = firestore.client()
 
@@ -39,7 +65,6 @@ class FirestoreDB:
         if self._db is None:
             self._initialize_firebase()
         return self._db
-
 
 # Create a singleton instance
 firestore_db = FirestoreDB()
